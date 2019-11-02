@@ -208,8 +208,8 @@ control MyIngress(inout headers hdr,
     }
 
     action confirm() {
-   		bit<8> mgr = -1;
-    	bit<8> id = -1;
+   		int<8> mgr = -1;
+    	int<8> id = -1;
     	lock_txn_mgr.read(8w0, mgr);
     	lock_txn_id.read(8w0, id);
     	hdr.twopc.confirm.setValid();
