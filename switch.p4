@@ -216,8 +216,8 @@ control MyIngress(inout headers hdr,
     	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
     	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
     	if (mgr == -1) {
-    		lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
-    		lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
+    		lock_txn_mgr.write(32w0, (int<32>)hdr.twopc.vote.txn_mgr);
+    		lock_txn_id.write(32w0, (int<32>)hdr.twopc.vote.txn_id);
     		hdr.twopc.confirm.status = 0;
     	}
         else {
