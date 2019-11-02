@@ -195,8 +195,8 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    register<bit<32>>(1) lock_txn_mgr;
-    register<bit<32>>(1) lock_txn_id;
+    register<int<32>>(1) lock_txn_mgr;
+    register<int<32>>(1) lock_txn_id;
     action send_to_controller() {
         standard_metadata.egress_spec = CONTROLLER_PORT;
         hdr.packet_in.setValid();
@@ -208,10 +208,10 @@ control MyIngress(inout headers hdr,
     }
 
     action confirm() {
-   		bit<32> mgr = -1;
-    	bit<32> id = -1;
-    	lock_txn_mgr.read(mgr, (bit<32>)0);
-    	lock_txn_id.read(id, (bit<32>)0);
+   		int<32> mgr = -1;
+    	int<32> id = -1;
+    	lock_txn_mgr.read(mgr, (int<32>)0);
+    	lock_txn_id.read(id, (int<32>)0);
     	hdr.twopc.confirm.setValid();
     	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
     	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
