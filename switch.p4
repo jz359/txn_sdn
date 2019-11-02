@@ -210,8 +210,8 @@ control MyIngress(inout headers hdr,
     action confirm() {
    		int<32> mgr = -1;
     	int<32> id = -1;
-    	lock_txn_mgr.read(mgr, (int<32>)0);
-    	lock_txn_id.read(id, (int<32>)0);
+    	lock_txn_mgr.read(mgr, 0);
+    	lock_txn_id.read(id, 0);
     	hdr.twopc.confirm.setValid();
     	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
     	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
