@@ -51,8 +51,18 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
             print "Installed P4 Program using SetForwardingPipelineConfig on %s" % bmv2_switch.name
             switches[switch] = bmv2_switch
             
-        # TODO
-        # Add your code here
+        # add back forwarding rules for connectivity
+        addForwardingRule("s1", "10.0.1.11", 1)
+        addForwardingRule("s1", "10.0.2.22", 2)
+        addForwardingRule("s1", "10.0.3.33", 3)
+
+        addForwardingRule("s2", "10.0.1.11", 2)
+        addForwardingRule("s2", "10.0.2.22", 1)
+        addForwardingRule("s2", "10.0.3.33", 3)
+
+        addForwardingRule("s3", "10.0.1.11", 2)
+        addForwardingRule("s3", "10.0.2.22", 3)
+        addForwardingRule("s3", "10.0.3.33", 1)
         
     except KeyboardInterrupt:
         print " Shutting down."
