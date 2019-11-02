@@ -63,39 +63,39 @@ header packet_out_header_t {
 
 /* vote request from txn mgr */
 header vote_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
 }
 
 /* vote reply to txn mgr */
 header confirm_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
     bit<1>    status; // 0 for success
 }
 
 /* txn mgr telling us to release the lock if we hold it for them */
 header release_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
 }
 
 /* commit reply from txn mgr: basically telling us to release the lock but only on successful txn */
 header commit_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
 }
 
 /* commit ack to txn mgr */
 header finished_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
 }
 
 /* response to abort */
 header free_t {
-    bit<8>    txn_mgr;
-    bit<8>    txn_id;
+    bit<32>    txn_mgr;
+    bit<32>    txn_id;
 }
 
 header twopc_phase_t {
@@ -195,8 +195,8 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    register<int<32>>(1) lock_txn_mgr;
-    register<int<32>>(1) lock_txn_id;
+    register<bit<32>>(1) lock_txn_mgr;
+    register<bit<32>>(1) lock_txn_id;
     action send_to_controller() {
         standard_metadata.egress_spec = CONTROLLER_PORT;
         hdr.packet_in.setValid();
@@ -208,16 +208,16 @@ control MyIngress(inout headers hdr,
     }
 
     action confirm() {
-   		int<32> mgr = -1;
-    	int<32> id = -1;
+   		bit<32> mgr = 0;
+    	bit<32> id = 0;
     	lock_txn_mgr.read(mgr, 0);
     	lock_txn_id.read(id, 0);
     	hdr.twopc.confirm.setValid();
     	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
     	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
-    	if (mgr == -1) {
-    		lock_txn_mgr.write(32w0, (int<32>)hdr.twopc.vote.txn_mgr);
-    		lock_txn_id.write(32w0, (int<32>)hdr.twopc.vote.txn_id);
+    	if (mgr == 0) {
+    		lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
+    		lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
     		hdr.twopc.confirm.status = 0;
     	}
         else {
@@ -228,8 +228,8 @@ control MyIngress(inout headers hdr,
     }
 
     action finish() {
-    	lock_txn_mgr.write(32w0, 32s0b1111);
-    	lock_txn_mgr.write(32w0, 32s0b1111);
+    	lock_txn_mgr.write(32w0, 0);
+    	lock_txn_mgr.write(32w0, 0);
     	hdr.twopc.finished.setValid();
     	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
     	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_id;
@@ -237,8 +237,8 @@ control MyIngress(inout headers hdr,
     }
     
     action abort() {
-    	lock_txn_mgr.write(32w0, 32s0b1111);
-    	lock_txn_mgr.write(32w0, 32s0b1111);
+    	lock_txn_mgr.write(32w0, 0);
+    	lock_txn_mgr.write(32w0, 0);
     	hdr.twopc.free.setValid();
     	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
     	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_id;
