@@ -59,7 +59,7 @@ header vote_t {
 header confirm_t {
     bit<8>    txn_mgr;
     bit<8>    txn_id;
-    bit<1>    status;
+    bit<1>    status; // 0 for success
 }
 
 /* txn mgr telling us to release the lock if we hold it for them */
@@ -80,6 +80,12 @@ header finished_t {
     bit<8>    txn_id;
 }
 
+/* response to abort */
+header free_t {
+    bit<8>    txn_mgr;
+    bit<8>    txn_id;
+}
+
 header 2pc_phase_t {
     bit<3>  phase;
 }
@@ -89,4 +95,5 @@ header_union 2pc_t {
     confirm_t       confirm;
     release_t       release;
     finished_t      finished;
+    free_t          free;
 }

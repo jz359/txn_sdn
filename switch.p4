@@ -9,6 +9,7 @@ const bit<3> TYPE_CONFIRM = 1;
 const bit<3> TYPE_RELEASE = 2;
 const bit<3> TYPE_COMMIT = 3;
 const bit<3> TYPE_FINISHED = 4;
+const bit<3> TYPE_FREE = 5;
 
 struct metadata {
     /* empty */
@@ -21,16 +22,6 @@ struct headers {
     2pc_t               2pc;
     packet_in_header_t  packet_in;
     packet_out_header_t packet_out;
-}
-
-register lock_txn_mgr {
-    width: 8;
-    instance_count: 1;
-}
-
-register lock_txn_id {
-    width: 8;
-    instance_count: 1;
 }
 
 /*************************************************************************
@@ -66,10 +57,8 @@ parser MyParser(packet_in packet,
     	packet.extract(hdr.2pc_phase);
     	transition select(hdr.2pc_phase.phase) {
     		TYPE_VOTE: parse_2pc_vote;
-    		TYPE_CONFIRM: parse_2pc_confirm;
     		TYPE_RELEASE: parse_2pc_release;
     		TYPE_COMMIT: parse_2pc_commit;
-    		TYPE_FINISHED: parse_2pc_finished;
     		default: accept;
     	}
     }
@@ -78,20 +67,12 @@ parser MyParser(packet_in packet,
     	packet.extract(hdr.2pc.vote);
     	transition accept;
     }
-    state parse_2pc_confirm {
-    	packet.extract(hdr.2pc.confirm);
-    	transition accept;
-    }
     state parse_2pc_release {
     	packet.extract(hdr.2pc.release);
     	transition accept;
     }
     state parse_2pc_commit {
     	packet.extract(hdr.2pc.commit);
-    	transition accept;
-    }
-    state parse_2pc_finished {
-    	packet.extract(hdr.2pc.finished);
     	transition accept;
     }
 
@@ -114,6 +95,8 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
+    register<bit<8>>(8w1) lock_txn_mgr;
+    register<bit<8>>(8w1) lock_txn_id;
     action send_to_controller() {
         standard_metadata.egress_spec = CONTROLLER_PORT;
         hdr.packet_in.setValid();
@@ -124,14 +107,44 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
 
-    action construct_confirm() {
-        if (lock_txn_id == hdr.2pc.vote.txn_id && lock_txn_mgr == hdr.2pc.vote.txn_mgr) {
-            // TODO populate the confirm header and send to cntrlr
-        } else {
-            // same thing except set confirm.status = 0 and send to cntrlr
-        }
+    action confirm() {
+   		bit<8> mgr = -1;
+    	bit<8> id = -1;
+    	lock_txn_mgr.read(8w0, mgr);
+    	lock_txn_id.read(8w0, id);
+    	hdr.2pc.confirm.setValid();
+    	hdr.2pc.confirm.txn_mgr = hdr.2pc.vote.txn_mgr;
+    	hdr.2pc.confirm.txn_id = hdr.2pc.vote.txn_id;
+    	if (mgr == -1) {
+    		lock_txn_mgr.write(8w0, hdr.2pc.vote.txn_mgr);
+    		lock_txn_id.write(8w0, hdr.2pc.vote.txn_id);
+    		hdr.2pc.confirm.status = 0;
+    	}
+        else {
+	        // same thing except set confirm.status = 0 and send to cntrlr
+	        hdr.2pc.confirm.status = 1;
+	    }
+	    send_to_controller();
+    }
+
+    action finish() {
+    	lock_txn_mgr.write(8w0, 8s0xFF);
+    	lock_txn_mgr.write(8w0, 8s0xFF);
+    	hdr.2pc.finished.setValid();
+    	hdr.2pc.finished.txn_mgr = hdr.2pc.commit.txn_mgr;
+    	hdr.2pc.finished.txn_mgr = hdr.2pc.commit.txn_id;
+    	send_to_controller();
     }
     
+    action abort() {
+    	lock_txn_mgr.write(8w0, 8s0xFF);
+    	lock_txn_mgr.write(8w0, 8s0xFF);
+    	hdr.2pc.free.setValid();
+    	hdr.2pc.free.txn_mgr = hdr.2pc.commit.txn_mgr;
+    	hdr.2pc.free.txn_mgr = hdr.2pc.commit.txn_id;
+    	send_to_controller();
+    }
+
     action ipv4_forward(egressSpec_t port) {
         standard_metadata.egress_spec = port;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
@@ -149,24 +162,21 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = NoAction();
     }
-
-    table txn {
-        key = {
-            hdr.2pc.vote.txn_mgr : exact;
-            hdr.2pc.vote.txn_id  : exact;
-        }
-        actions = {
-            construct_confirm;
-            NoAction;
-        }
-        size = 1024;
-        default_action = NoAction();
-    }
     
     apply {
         // Process only IPv4 packets.	
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
+            if (hdr.2pc.vote.isValid()) {
+            	confirm();
+            }
+            if (hdr.2pc.commit.isValid()) {
+            	finish();
+            }
+            if (hdr.2pc.release.isValid()) {
+            	abort();
+            }
+
         } else {
 	        drop();
         }
@@ -215,6 +225,8 @@ control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
+        packet.emit(hdr.2pc_phase);
+        packet.emit(hdr.2pc);
     }
 }
 
