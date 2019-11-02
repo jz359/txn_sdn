@@ -68,13 +68,7 @@ header release_t {
     bit<8>    txn_id;
 }
 
-/* txn mgr telling us to release the lock if we hold it for them */
-header free_t {
-	bit<8>    txn_mgr;
-    bit<8>    txn_id;
-}
-
-/* commit reply from txn mgr: basically telling us to release the lock */
+/* commit reply from txn mgr: basically telling us to release the lock but only on successful txn */
 header commit_t {
     bit<8>    txn_mgr;
     bit<8>    txn_id;
@@ -86,11 +80,13 @@ header finished_t {
     bit<8>    txn_id;
 }
 
-header 2pc_t {
+header 2pc_phase_t {
+    bit<3>  phase;
+}
+header_union 2pc_t {
 	vote_t          vote;
     commit_t        commit;
     confirm_t       confirm;
     release_t       release;
-    free_t          free;
     finished_t      finished;
 }

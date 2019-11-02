@@ -3,6 +3,13 @@
 #include <v1model.p4>
 #include "headers.p4"
 
+const bit<8> TYPE_2PC_PHASE = 0xFD;
+const bit<3> TYPE_VOTE = 0;
+const bit<3> TYPE_CONFIRM = 1;
+const bit<3> TYPE_RELEASE = 2;
+const bit<3> TYPE_COMMIT = 3;
+const bit<3> TYPE_FINISHED = 4;
+
 struct metadata {
     /* empty */
 }
@@ -10,6 +17,7 @@ struct metadata {
 struct headers {
     ethernet_t          ethernet;
     ipv4_t              ipv4;
+    2pc_phase_t			2pc_phase;
     2pc_t               2pc;
     packet_in_header_t  packet_in;
     packet_out_header_t packet_out;
@@ -48,7 +56,43 @@ parser MyParser(packet_in packet,
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition accept;
+        transition select(hdr.ipv4.protocol) {
+        	TYPE_2PC_PHASE: parse_2pc_phase;
+        	default: accept;
+        }
+    }
+
+    state parse_2pc_phase {
+    	packet.extract(hdr.2pc_phase);
+    	transition select(hdr.2pc_phase.phase) {
+    		TYPE_VOTE: parse_2pc_vote;
+    		TYPE_CONFIRM: parse_2pc_confirm;
+    		TYPE_RELEASE: parse_2pc_release;
+    		TYPE_COMMIT: parse_2pc_commit;
+    		TYPE_FINISHED: parse_2pc_finished;
+    		default: accept;
+    	}
+    }
+
+    state parse_2pc_vote {
+    	packet.extract(hdr.2pc.vote);
+    	transition accept;
+    }
+    state parse_2pc_confirm {
+    	packet.extract(hdr.2pc.confirm);
+    	transition accept;
+    }
+    state parse_2pc_release {
+    	packet.extract(hdr.2pc.release);
+    	transition accept;
+    }
+    state parse_2pc_commit {
+    	packet.extract(hdr.2pc.commit);
+    	transition accept;
+    }
+    state parse_2pc_finished {
+    	packet.extract(hdr.2pc.finished);
+    	transition accept;
     }
 
 }
