@@ -3,7 +3,7 @@
 #include <v1model.p4>
 #include "headers.p4"
 
-const bit<8> TYPE_2PC_PHASE = 0xFD;
+const bit<8> TYPE_TWOPC_PHASE = 0xFD;
 const bit<3> TYPE_VOTE = 0;
 const bit<3> TYPE_CONFIRM = 1;
 const bit<3> TYPE_RELEASE = 2;
@@ -18,8 +18,8 @@ struct metadata {
 struct headers {
     ethernet_t          ethernet;
     ipv4_t              ipv4;
-    2pc_phase_t			2pc_phase;
-    2pc_t               2pc;
+    twopc_phase_t		twopc_phase;
+    twopc_t             twopc;
     packet_in_header_t  packet_in;
     packet_out_header_t packet_out;
 }
@@ -48,31 +48,31 @@ parser MyParser(packet_in packet,
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
         transition select(hdr.ipv4.protocol) {
-        	TYPE_2PC_PHASE: parse_2pc_phase;
+        	TYPE_TWOPC_PHASE: parse_twopc_phase;
         	default: accept;
         }
     }
 
-    state parse_2pc_phase {
-    	packet.extract(hdr.2pc_phase);
-    	transition select(hdr.2pc_phase.phase) {
-    		TYPE_VOTE: parse_2pc_vote;
-    		TYPE_RELEASE: parse_2pc_release;
-    		TYPE_COMMIT: parse_2pc_commit;
+    state parse_twopc_phase {
+    	packet.extract(hdr.twopc_phase);
+    	transition select(hdr.twopc_phase.phase) {
+    		TYPE_VOTE: parse_twopc_vote;
+    		TYPE_RELEASE: parse_twopc_release;
+    		TYPE_COMMIT: parse_twopc_commit;
     		default: accept;
     	}
     }
 
-    state parse_2pc_vote {
-    	packet.extract(hdr.2pc.vote);
+    state parse_twopc_vote {
+    	packet.extract(hdr.twopc.vote);
     	transition accept;
     }
-    state parse_2pc_release {
-    	packet.extract(hdr.2pc.release);
+    state parse_twopc_release {
+    	packet.extract(hdr.twopc.release);
     	transition accept;
     }
-    state parse_2pc_commit {
-    	packet.extract(hdr.2pc.commit);
+    state parse_twopc_commit {
+    	packet.extract(hdr.twopc.commit);
     	transition accept;
     }
 
@@ -112,17 +112,17 @@ control MyIngress(inout headers hdr,
     	bit<8> id = -1;
     	lock_txn_mgr.read(8w0, mgr);
     	lock_txn_id.read(8w0, id);
-    	hdr.2pc.confirm.setValid();
-    	hdr.2pc.confirm.txn_mgr = hdr.2pc.vote.txn_mgr;
-    	hdr.2pc.confirm.txn_id = hdr.2pc.vote.txn_id;
+    	hdr.twopc.confirm.setValid();
+    	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
+    	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
     	if (mgr == -1) {
-    		lock_txn_mgr.write(8w0, hdr.2pc.vote.txn_mgr);
-    		lock_txn_id.write(8w0, hdr.2pc.vote.txn_id);
-    		hdr.2pc.confirm.status = 0;
+    		lock_txn_mgr.write(8w0, hdr.twopc.vote.txn_mgr);
+    		lock_txn_id.write(8w0, hdr.twopc.vote.txn_id);
+    		hdr.twopc.confirm.status = 0;
     	}
         else {
 	        // same thing except set confirm.status = 0 and send to cntrlr
-	        hdr.2pc.confirm.status = 1;
+	        hdr.twopc.confirm.status = 1;
 	    }
 	    send_to_controller();
     }
@@ -130,18 +130,18 @@ control MyIngress(inout headers hdr,
     action finish() {
     	lock_txn_mgr.write(8w0, 8s0xFF);
     	lock_txn_mgr.write(8w0, 8s0xFF);
-    	hdr.2pc.finished.setValid();
-    	hdr.2pc.finished.txn_mgr = hdr.2pc.commit.txn_mgr;
-    	hdr.2pc.finished.txn_mgr = hdr.2pc.commit.txn_id;
+    	hdr.twopc.finished.setValid();
+    	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
+    	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_id;
     	send_to_controller();
     }
     
     action abort() {
     	lock_txn_mgr.write(8w0, 8s0xFF);
     	lock_txn_mgr.write(8w0, 8s0xFF);
-    	hdr.2pc.free.setValid();
-    	hdr.2pc.free.txn_mgr = hdr.2pc.commit.txn_mgr;
-    	hdr.2pc.free.txn_mgr = hdr.2pc.commit.txn_id;
+    	hdr.twopc.free.setValid();
+    	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
+    	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_id;
     	send_to_controller();
     }
 
@@ -167,13 +167,13 @@ control MyIngress(inout headers hdr,
         // Process only IPv4 packets.	
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
-            if (hdr.2pc.vote.isValid()) {
+            if (hdr.twopc.vote.isValid()) {
             	confirm();
             }
-            if (hdr.2pc.commit.isValid()) {
+            if (hdr.twopc.commit.isValid()) {
             	finish();
             }
-            if (hdr.2pc.release.isValid()) {
+            if (hdr.twopc.release.isValid()) {
             	abort();
             }
 
@@ -225,8 +225,8 @@ control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
-        packet.emit(hdr.2pc_phase);
-        packet.emit(hdr.2pc);
+        packet.emit(hdr.twopc_phase);
+        packet.emit(hdr.twopc);
     }
 }
 

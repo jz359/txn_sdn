@@ -86,10 +86,10 @@ header free_t {
     bit<8>    txn_id;
 }
 
-header 2pc_phase_t {
+header twopc_phase_t {
     bit<3>  phase;
 }
-header_union 2pc_t {
+header_union twopc_t {
 	vote_t          vote;
     commit_t        commit;
     confirm_t       confirm;
