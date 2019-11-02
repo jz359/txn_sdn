@@ -3,12 +3,12 @@
 #include <v1model.p4>
 
 const bit<8> TYPE_TWOPC_PHASE = 0xFD;
-const bit<3> TYPE_VOTE = 0;
-const bit<3> TYPE_CONFIRM = 1;
-const bit<3> TYPE_RELEASE = 2;
-const bit<3> TYPE_COMMIT = 3;
-const bit<3> TYPE_FINISHED = 4;
-const bit<3> TYPE_FREE = 5;
+const bit<8> TYPE_VOTE = 0;
+const bit<8> TYPE_CONFIRM = 1;
+const bit<8> TYPE_RELEASE = 2;
+const bit<8> TYPE_COMMIT = 3;
+const bit<8> TYPE_FINISHED = 4;
+const bit<8> TYPE_FREE = 5;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -71,7 +71,7 @@ header vote_t {
 header confirm_t {
     bit<32>    txn_mgr;
     bit<32>    txn_id;
-    bit<1>    status; // 0 for success
+    bit<8>    status; // 0 for success
 }
 
 /* txn mgr telling us to release the lock if we hold it for them */
@@ -99,7 +99,7 @@ header free_t {
 }
 
 header twopc_phase_t {
-    bit<3>  phase;
+    bit<8>  phase;
 }
 
 header_union twopc_t {
@@ -207,26 +207,6 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
 
-    action confirm() {
-   		bit<32> mgr = 0;
-    	bit<32> id = 0;
-    	lock_txn_mgr.read(mgr, 0);
-    	lock_txn_id.read(id, 0);
-    	hdr.twopc.confirm.setValid();
-    	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
-    	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
-    	if (mgr == 0) {
-    		lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
-    		lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
-    		hdr.twopc.confirm.status = 0;
-    	}
-        else {
-	        // same thing except set confirm.status = 0 and send to cntrlr
-	        hdr.twopc.confirm.status = 1;
-	    }
-	    send_to_controller();
-    }
-
     action finish() {
     	lock_txn_mgr.write(32w0, 0);
     	lock_txn_mgr.write(32w0, 0);
@@ -268,7 +248,23 @@ control MyIngress(inout headers hdr,
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
             if (hdr.twopc.vote.isValid()) {
-            	confirm();
+            	bit<32> mgr = 0;
+		    	bit<32> id = 0;
+		    	lock_txn_mgr.read(mgr, 0);
+		    	lock_txn_id.read(id, 0);
+		    	hdr.twopc.confirm.setValid();
+		    	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
+		    	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
+		    	if (mgr == 0) {
+		    		lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
+		    		lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
+		    		hdr.twopc.confirm.status = 0;
+		    	}
+		        else {
+			        // same thing except set confirm.status = 0 and send to cntrlr
+			        hdr.twopc.confirm.status = 1;
+			    }
+			    send_to_controller();
             }
             if (hdr.twopc.commit.isValid()) {
             	finish();
