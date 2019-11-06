@@ -3,6 +3,7 @@ import argparse
 import grpc
 import os
 import sys
+import threading
 from time import sleep
 from scapy.all import sendp, send, get_if_list, get_if_hwaddr
 from scapy.all import Packet
@@ -39,12 +40,23 @@ class TwoPCPhase(Packet):
     name = "phase"
     fields_desc = [BitField("phase", 0, length=8)]
 
-class TransactionManager(object):
-    def __init__(self):
+class TransactionManager(threading.Thread):
+    def __init__(self, txn_mgr, txn_id, updates):
         # TODO add fields to send/receive packets to switches
-        # map from txn_id to JSON
-        txn_info = {}
+        self.txn_mgr = txn_mgr
+        self.txn_id = txn_id
+
+        # JSON of updates to apply once every lock is held
+        self.updates = updates
         pass
+
+    def apply_updates(self):
+        # basically addForwardingRule
+        pass
+
+    def run(self):
+        # send vote packets, listen for responses, then decide release/commit
+        # TODO a lot of scapy here
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
 	pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
