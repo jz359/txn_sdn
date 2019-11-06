@@ -14,6 +14,7 @@ NetPaxos: https://github.com/open-nfpsw/NetPaxos/blob/master/src/acceptor.p4
 - receive
     - how can controller listen to pkts directed to it from p4 [see scapy - use sr function + callbacks]
     - processing packets [helper functions - see scapy]
+- listen to sdn app
 
 ## Timeline
 - on oct 25: write skeleton code for TM (python) and RM (P4) 

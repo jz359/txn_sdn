@@ -18,7 +18,7 @@ import p4runtime_lib.helper
 switches = {}
 p4info_helper = None
 txn_mgr = None
-
+txn_id = 0
 
 class Vote(Packet):
     name = "vote"
@@ -46,14 +46,20 @@ class TransactionManager(object):
         txn_info = {}
         pass
 
-def vote_pkt():
-    pass
+def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
+	pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt = pkt /IP(dst=ip_addr) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
 
-def release_pkt():
-    pass
+def release_pkt(txn_id, txn_mgr, iface, ip_addr):
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt = pkt /IP(dst=ip_addr) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
 
-def commit_pkt():
-    pass
+def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt = pkt /IP(dst=ip_addr) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
 
 def addForwardingRule(switch, dst_ip_addr, dst_port):
     # Helper function to install forwarding rules
