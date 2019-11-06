@@ -7,11 +7,13 @@ Paxos made Switch-y:
 NetPaxos: https://github.com/open-nfpsw/NetPaxos/blob/master/src/acceptor.p4
 
 ## TODOs
+- assigning txn ids, txn mgr
 - send: how to send from controller to switch 
 	- def pkt structure [https://scapy.readthedocs.io/en/latest/build_dissect.html]
+	- send [https://thepacketgeek.com/scapy-p-06-sending-and-receiving-with-scapy/]
 - receive
-    - how can controller listen to pkts directed to it from p4 
-    - processing packets
+    - how can controller listen to pkts directed to it from p4 [see scapy - use sr function + callbacks]
+    - processing packets [helper functions - see scapy]
 
 ## Timeline
 - on oct 25: write skeleton code for TM (python) and RM (P4) 
