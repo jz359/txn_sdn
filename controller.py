@@ -4,6 +4,10 @@ import grpc
 import os
 import sys
 from time import sleep
+from scapy.all import sendp, send, get_if_list, get_if_hwaddr
+from scapy.all import Packet
+from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
+
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'utils/'))
 import run_exercise
@@ -15,6 +19,26 @@ switches = {}
 p4info_helper = None
 txn_mgr = None
 
+
+class Vote(Packet):
+    name = "vote"
+    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
+                    BitFieldLenField("txn_id", 0, length=32)]
+
+class Release(Packet):
+    name = "release"
+    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
+                    BitFieldLenField("txn_id", 0, length=32)]
+
+class Commit(Packet):
+    name = "commit"
+    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
+                    BitFieldLenField("txn_id", 0, length=32)]
+
+class TwoPCPhase(Packet):
+    name = "phase"
+    fields_desc = [BitField("phase", 0, length=8)]
+
 class TransactionManager(object):
     def __init__(self):
         # TODO add fields to send/receive packets to switches
@@ -22,7 +46,13 @@ class TransactionManager(object):
         txn_info = {}
         pass
 
-def transactionalUpdate(txn_mgr):
+def vote_pkt():
+    pass
+
+def release_pkt():
+    pass
+
+def commit_pkt():
     pass
 
 def addForwardingRule(switch, dst_ip_addr, dst_port):
