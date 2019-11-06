@@ -13,6 +13,17 @@ import p4runtime_lib.helper
 
 switches = {}
 p4info_helper = None
+txn_mgr = None
+
+class TransactionManager(object):
+    def __init__(self):
+        # TODO add fields to send/receive packets to switches
+        # map from txn_id to JSON
+        txn_info = {}
+        pass
+
+def transactionalUpdate(txn_mgr):
+    pass
 
 def addForwardingRule(switch, dst_ip_addr, dst_port):
     # Helper function to install forwarding rules
@@ -33,6 +44,7 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
     p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
+    txn_mgr = TransactionManager()
 
     try:
         # Establish a P4 Runtime connection to each switch
@@ -63,6 +75,8 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
         addForwardingRule("s3", "10.0.1.11", 2)
         addForwardingRule("s3", "10.0.2.22", 3)
         addForwardingRule("s3", "10.0.3.33", 1)
+
+        # TODO enter loop and prompt user input for JSON file of txn
         
     except KeyboardInterrupt:
         print " Shutting down."
