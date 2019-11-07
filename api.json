@@ -1,0 +1,16 @@
+{
+	"s1": {
+		"TABLE_NAME": "MyIngress.ipv4_lpm",
+		"MATCH_FIELDS": [
+			["field", "val", 32],
+			...
+		],
+		"ACTION": "MyIngress.ipv4_forward",
+		"ACTION_PARAMS": [
+			["field", "val"],
+			...
+		]
+	}
+
+	"s2": {...}
+}

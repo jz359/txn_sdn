@@ -20,6 +20,11 @@ switches = {}
 p4info_helper = None
 txn_mgr = None
 txn_id = 0
+PARTICIPANTS = 0
+
+response_list = {}
+access_lock = threading.Lock()
+got_all_responses = threading.Condition(access_lock)
 
 class Vote(Packet):
     name = "vote"
@@ -40,23 +45,56 @@ class TwoPCPhase(Packet):
     name = "phase"
     fields_desc = [BitField("phase", 0, length=8)]
 
-class TransactionManager(threading.Thread):
-    def __init__(self, txn_mgr, txn_id, updates):
-        # TODO add fields to send/receive packets to switches
+class Runner(threading.Thread):
+    def __init__(self, txn_mgr, txn_id, phase, sw):
         self.txn_mgr = txn_mgr
         self.txn_id = txn_id
+        self.phase = phase
+        self.sw = sw
 
-        # JSON of updates to apply once every lock is held
-        self.updates = updates
-        pass
+    def run_vote(self):
+        # TODO implement
+        return 0 # success
 
-    def apply_updates(self):
-        # basically addForwardingRule
-        pass
+    def run_release(self):
+        # TODO implement
+        return 0 # success
+
+    def run_commit(self):
+        # TODO implement
+        return 0 # success
 
     def run(self):
-        # send vote packets, listen for responses, then decide release/commit
-        # TODO a lot of scapy here
+        global response_list, got_all_responses, access_lock
+        if self.phase = "vote":
+            response = self.run_vote()
+        elif self.phase = "release":
+            response = self.run_release()
+        elif self.phase = "commit":
+            response = self.run_commit()
+        else:
+            print("wtf")
+
+        with access_lock:
+            response_list[self.sw] = response
+            if len(response_list.keys()) == PARTICIPANTS:
+                got_all_responses.notifyAll()
+
+
+class TransactionManager(object):
+    def __init__(self, txn_mgr):
+        self.txn_mgr = txn_mgr
+        # map of txn_id to JSON of updates to apply once every lock is held
+        # see api.json
+        self.updates = {}
+
+    def run_txn(self, txn_id, updates):
+        global response_list, got_all_responses, access_lock
+        self.updates[txn_id] = updates
+        # TODO create and spawn Runner threads for each switch in [updates]
+        # set PARTICIPANTS, start the threads, and wait on the cv
+        # gather responses, delete threads, and repeat for each phase 
+
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
 	pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
