@@ -2,7 +2,7 @@
 #include <core.p4>
 #include <v1model.p4>
 
-const bit<8> TYPE_TWOPC_PHASE = 0xFD;
+const bit<16> TYPE_TWOPC_PHASE = 0x9999;
 const bit<8> TYPE_VOTE = 0;
 const bit<8> TYPE_CONFIRM = 1;
 const bit<8> TYPE_RELEASE = 2;
@@ -45,17 +45,17 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
-@controller_header("packet_in")
-header packet_in_header_t {
-    switch_port_t ingress_port;
-    bit<7>        padding;
-}
+// @controller_header("packet_in")
+// header packet_in_header_t {
+//    switch_port_t ingress_port;
+//    bit<7>        padding;
+//}
 
-@controller_header("packet_out")
+/* @controller_header("packet_out")
 header packet_out_header_t {
     switch_port_t egress_port;
     bit<7>        padding;
-}
+} */
 
 /* BEGIN TXN_SDN HEADERS */
 
@@ -120,8 +120,8 @@ struct headers {
     ipv4_t              ipv4;
     twopc_phase_t		twopc_phase;
     twopc_t             twopc;
-    packet_in_header_t  packet_in;
-    packet_out_header_t packet_out;
+    // packet_in_header_t  packet_in;
+    // packet_out_header_t packet_out;
 }
 
 /*************************************************************************
@@ -141,16 +141,14 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
             TYPE_IPV4: parse_ipv4;
+            TYPE_TWOPC_PHASE: parse_twopc_phase;
             default: accept;
         }
     }
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition select(hdr.ipv4.protocol) {
-        	TYPE_TWOPC_PHASE: parse_twopc_phase;
-        	default: accept;
-        }
+        transition accept;
     }
 
     state parse_twopc_phase {
@@ -198,9 +196,9 @@ control MyIngress(inout headers hdr,
     register<bit<32>>(1) lock_txn_mgr;
     register<bit<32>>(1) lock_txn_id;
     action send_to_controller() {
-        standard_metadata.egress_spec = CONTROLLER_PORT;
-        hdr.packet_in.setValid();
-        hdr.packet_in.ingress_port = standard_metadata.ingress_port;
+        standard_metadata.egress_spec = standard_metadata.ingress_port;
+        // hdr.packet_in.setValid();
+        // hdr.packet_in.ingress_port = standard_metadata.ingress_port;
     }
 
     action drop() {
@@ -247,33 +245,33 @@ control MyIngress(inout headers hdr,
         // Process only IPv4 packets.	
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
-            if (hdr.twopc.vote.isValid()) {
-            	bit<32> mgr = 0;
-		    	bit<32> id = 0;
-		    	lock_txn_mgr.read(mgr, 0);
-		    	lock_txn_id.read(id, 0);
-		    	hdr.twopc.confirm.setValid();
-		    	hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
-		    	hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
-		    	if (mgr == 0) {
-		    		lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
-		    		lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
-		    		hdr.twopc.confirm.status = 0;
-		    	}
-		        else {
-			        // same thing except set confirm.status = 0 and send to cntrlr
-			        hdr.twopc.confirm.status = 1;
-			    }
-			    send_to_controller();
-            }
-            if (hdr.twopc.commit.isValid()) {
-            	finish();
-            }
-            if (hdr.twopc.release.isValid()) {
-            	abort();
-            }
 
-        } else {
+        } else if (hdr.twopc.vote.isValid()) {
+            bit<32> mgr = 0;
+            bit<32> id = 0;
+            lock_txn_mgr.read(mgr, 0);
+            lock_txn_id.read(id, 0);
+            hdr.twopc.confirm.setValid();
+            hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
+            hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
+            if (mgr == 0) {
+                lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
+                lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
+                hdr.twopc.confirm.status = 0;
+            }
+            else {
+                // same thing except set confirm.status = 0 and send to cntrlr
+                hdr.twopc.confirm.status = 1;
+            }
+            send_to_controller();
+        }
+        else if (hdr.twopc.commit.isValid()) {
+            finish();
+        }
+        else if (hdr.twopc.release.isValid()) {
+            abort();
+        }
+        else {
 	        drop();
         }
     }
