@@ -28,6 +28,7 @@ from mininet.net import Mininet
 from mininet.topo import Topo
 from mininet.link import TCLink
 from mininet.cli import CLI
+from mininet.node import Controller
 
 from p4runtime_switch import P4RuntimeSwitch
 import p4runtime_lib.simple_controller
@@ -63,6 +64,12 @@ def configureP4Switch(**switch_args):
 
         return ConfiguredP4Switch
 
+TXNDIR = os.environ[ 'HOME' ] + '/Desktop/txn_sdn/'
+
+class TxnController( Controller ):
+    def __init__( self, name ):
+        Controller.__init__( self, name, cdir=TXNDIR,
+                             command='python controller.py' )
 
 class ExerciseTopo(Topo):
     """ The mininet topology class for the P4 tutorial exercises.
@@ -255,7 +262,7 @@ class ExerciseRunner:
                       link = TCLink,
                       host = P4Host,
                       switch = defaultSwitchClass,
-                      controller = None)
+                      controller = lambda name: TxnController( name ))
 
     def program_switch_p4runtime(self, sw_name, sw_dict):
         """ This method will use P4Runtime to program the switch using the

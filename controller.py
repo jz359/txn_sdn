@@ -2,6 +2,7 @@
 import argparse
 import grpc
 import os
+import socket
 import sys
 import threading
 from time import sleep
@@ -28,32 +29,49 @@ got_all_responses = threading.Condition(access_lock)
 
 class Vote(Packet):
     name = "vote"
-    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
-                    BitFieldLenField("txn_id", 0, length=32)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 class Release(Packet):
     name = "release"
-    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
-                    BitFieldLenField("txn_id", 0, length=32)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 class Commit(Packet):
     name = "commit"
-    fields_desc = [BitFieldLenField("txn_mgr", 0, length=32),
-                    BitFieldLenField("txn_id", 0, length=32)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 class TwoPCPhase(Packet):
     name = "phase"
-    fields_desc = [BitField("phase", 0, length=8)]
+    fields_desc = [BitField("phase", 0, 8)]
+
+def get_if():
+    ifs=get_if_list()
+    iface=None
+    for i in get_if_list():
+        if "eth0" in i:
+            iface=i
+            break;
+    if not iface:
+        print "Cannot find eth0 interface"
+        exit(1)
+    return iface
 
 class Runner(threading.Thread):
     def __init__(self, txn_mgr, txn_id, phase, sw):
+        super(Runner, self).__init__()
         self.txn_mgr = txn_mgr
         self.txn_id = txn_id
         self.phase = phase
         self.sw = sw
 
     def run_vote(self):
-        # TODO implement
+        iface = get_if()
+        sw_ip = socket.gethostbyname(self.sw)
+        pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, sw_ip)
+        pkt = srp1(pkt, iface=iface, verbose=False)
+        print_pkt(pkt[0][1])
         return 0 # success
 
     def run_release(self):
@@ -66,11 +84,11 @@ class Runner(threading.Thread):
 
     def run(self):
         global response_list, got_all_responses, access_lock
-        if self.phase = "vote":
+        if self.phase == "vote":
             response = self.run_vote()
-        elif self.phase = "release":
+        elif self.phase == "release":
             response = self.run_release()
-        elif self.phase = "commit":
+        elif self.phase == "commit":
             response = self.run_commit()
         else:
             print("wtf")
@@ -94,10 +112,12 @@ class TransactionManager(object):
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
         # gather responses, delete threads, and repeat for each phase 
+        r = Runner(100,200,"vote", "s1")
+        r.start()
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
-	pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
@@ -130,7 +150,7 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
     p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
-    txn_mgr = TransactionManager()
+    
 
     try:
         # Establish a P4 Runtime connection to each switch
@@ -163,7 +183,8 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
         addForwardingRule("s3", "10.0.3.33", 1)
 
         # TODO enter loop and prompt user input for JSON file of txn
-        
+        txn_mgr = TransactionManager(1)
+        txn_mgr.run_txn(9,None)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
@@ -202,3 +223,4 @@ if __name__ == '__main__':
         parser.exit(1)
     main(args.p4info, args.bmv2_json, args.topo)
 
+    
