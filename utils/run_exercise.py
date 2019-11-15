@@ -28,7 +28,7 @@ from mininet.net import Mininet
 from mininet.topo import Topo
 from mininet.link import TCLink
 from mininet.cli import CLI
-from mininet.node import Controller
+from mininet.node import Controller, RemoteController
 
 from p4runtime_switch import P4RuntimeSwitch
 import p4runtime_lib.simple_controller
@@ -262,7 +262,7 @@ class ExerciseRunner:
                       link = TCLink,
                       host = P4Host,
                       switch = defaultSwitchClass,
-                      controller = lambda name: TxnController( name ))
+                      controller = lambda name: RemoteController( name,ip=hex(0x7f000001),port=255 ))
 
     def program_switch_p4runtime(self, sw_name, sw_dict):
         """ This method will use P4Runtime to program the switch using the
