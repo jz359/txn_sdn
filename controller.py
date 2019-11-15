@@ -6,7 +6,7 @@ import socket
 import sys
 import threading
 from time import sleep
-from scapy.all import sendp, send, get_if_list, get_if_hwaddr
+from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1
 from scapy.all import Packet
 from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
 
@@ -58,6 +58,10 @@ def get_if():
         exit(1)
     return iface
 
+def print_pkt(pkt):
+    pkt.show2()
+    sys.stdout.flush()
+
 class Runner(threading.Thread):
     def __init__(self, txn_mgr, txn_id, phase, sw):
         super(Runner, self).__init__()
@@ -68,8 +72,9 @@ class Runner(threading.Thread):
 
     def run_vote(self):
         iface = get_if()
-        sw_ip = socket.gethostbyname(self.sw)
-        pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, sw_ip)
+        # sw_ip = socket.gethostbyname(self.sw)
+        # iface = "eth0"
+        pkt = vote_pkt(self.txn_id, self.txn_mgr, None, '10.0.1.11')
         pkt = srp1(pkt, iface=iface, verbose=False)
         print_pkt(pkt[0][1])
         return 0 # success
@@ -117,17 +122,17 @@ class TransactionManager(object):
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
@@ -197,15 +202,22 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
     ShutdownAllSwitchConnections()
 
 if __name__ == '__main__':
-    serversocket = socket.socket(
-    socket.AF_INET, socket.SOCK_STREAM)
-    #bind the socket to a public host,
-    # and a well-known port
-    serversocket.bind(("127.0.0.1", 255))
-    #become a server socket
-    serversocket.listen(5)
-    while True:
-        pass
+    # serversocket = socket.socket(
+    # socket.AF_INET, socket.SOCK_STREAM)
+    # #bind the socket to a public host,
+    # # and a well-known port
+    # serversocket.bind(("127.0.0.1", 255))
+    # #become a server socket
+    # serversocket.listen(5)
+    # while True:
+    #     c, addr = serversocket.accept()
+    #     print('got a thing from', addr)
+    #     sleep(10)
+    #     txn_mgr = TransactionManager(1)
+    #     print('running txn')
+    #     txn_mgr.run_txn(9,None)
+    #     pass
+
     parser = argparse.ArgumentParser(description='P4Runtime Controller')
     parser.add_argument('--p4info', help='p4info proto in text format from p4c',
                         type=str, action="store", required=False,

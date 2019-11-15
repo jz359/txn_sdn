@@ -258,11 +258,12 @@ class ExerciseRunner:
 
         self.topo = ExerciseTopo(self.hosts, self.switches, self.links, self.log_dir, self.bmv2_exe, self.pcap_dir)
 
+
         self.net = Mininet(topo = self.topo,
                       link = TCLink,
                       host = P4Host,
                       switch = defaultSwitchClass,
-                      controller = lambda name: RemoteController( name,ip=hex(0x7f000001),port=255 ))
+                      controller = lambda name: Controller( name,command='sudo python controller.py',cdir=os.environ['HOME']+'Desktop/txn_sdn',port=255))
 
     def program_switch_p4runtime(self, sw_name, sw_dict):
         """ This method will use P4Runtime to program the switch using the
