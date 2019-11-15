@@ -262,7 +262,7 @@ class ExerciseRunner:
                       link = TCLink,
                       host = P4Host,
                       switch = defaultSwitchClass,
-                      controller = lambda name: TxnController( name ))
+                      controller = None)
 
     def program_switch_p4runtime(self, sw_name, sw_dict):
         """ This method will use P4Runtime to program the switch using the
