@@ -251,6 +251,7 @@ class ExerciseRunner:
 
         self.topo = ExerciseTopo(self.hosts, self.switches, self.links, self.log_dir, self.bmv2_exe, self.pcap_dir)
 
+
         self.net = Mininet(topo = self.topo,
                       link = TCLink,
                       host = P4Host,
