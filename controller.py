@@ -6,7 +6,7 @@ import socket
 import sys
 import threading
 from time import sleep
-from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1
+from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1, sr1
 from scapy.all import Packet
 from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
 
@@ -76,7 +76,7 @@ class Runner(threading.Thread):
         # iface = "eth0"
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
         print('about to send packet')
-        pkt = sr1(pkt, iface=iface, verbose=False)
+        pkt = sr1(pkt, iface=iface, verbose=False, timeout=5)
         print('got response packet')
         print_pkt(pkt[0][1])
         return 0 # success
