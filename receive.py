@@ -13,11 +13,11 @@ def get_if():
     ifs=get_if_list()
     iface=None
     for i in get_if_list():
-        if "eth0" in i:
+        if "enp0s3" in i:
             iface=i
             break;
     if not iface:
-        print "Cannot find eth0 interface"
+        print "Cannot find enp0s3 interface"
         exit(1)
     return iface
 
@@ -34,16 +34,14 @@ class IPOption_MRI(IPOption):
                                    IntField("", 0),
                                    length_from=lambda pkt:pkt.count*4) ]
 def handle_pkt(pkt):
-    if TCP in pkt and pkt[TCP].dport == 1234:
-        print "got a packet"
-        pkt.show2()
+    pkt.show2()
     #    hexdump(pkt)
-        sys.stdout.flush()
+    sys.stdout.flush()
 
 
 def main():
     ifaces = filter(lambda i: 'eth' in i, os.listdir('/sys/class/net/'))
-    iface = ifaces[0]
+    iface = 'enp0s3'
     print "sniffing on %s" % iface
     sys.stdout.flush()
     sniff(iface = iface,

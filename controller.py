@@ -188,8 +188,8 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
         addForwardingRule("s3", "10.0.3.33", 1)
 
         # TODO enter loop and prompt user input for JSON file of txn
-        txn_mgr = TransactionManager(1)
-        txn_mgr.run_txn(9,None)
+        #txn_mgr = TransactionManager(1)
+        #txn_mgr.run_txn(9,None)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
