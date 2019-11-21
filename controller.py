@@ -75,7 +75,9 @@ class Runner(threading.Thread):
         # sw_ip = socket.gethostbyname(self.sw)
         # iface = "eth0"
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
+        print('about to send packet')
         pkt = srp1(pkt, iface=iface, verbose=False)
+        print('got response packet')
         print_pkt(pkt[0][1])
         return 0 # success
 
