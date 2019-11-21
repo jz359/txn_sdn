@@ -76,7 +76,7 @@ class Runner(threading.Thread):
         # iface = "eth0"
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
         print('about to send packet')
-        pkt.show2()
+        print_pkt(pkt)
         pkt = sendp(pkt, iface=iface, verbose=False, timeout=5)
         print('got response packet')
         print_pkt(pkt[0][1])
