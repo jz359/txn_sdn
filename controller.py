@@ -6,7 +6,7 @@ import socket
 import sys
 import threading
 from time import sleep
-from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1
+from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1, sr1
 from scapy.all import Packet
 from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
 
@@ -50,11 +50,11 @@ def get_if():
     ifs=get_if_list()
     iface=None
     for i in get_if_list():
-        if "eth0" in i:
+        if "enp0s3" in i:
             iface=i
             break;
     if not iface:
-        print "Cannot find eth0 interface"
+        print "Cannot find enp0s3 interface"
         exit(1)
     return iface
 
@@ -72,10 +72,12 @@ class Runner(threading.Thread):
 
     def run_vote(self):
         iface = get_if()
-        # sw_ip = socket.gethostbyname(self.sw)
+        # sw_ip = socket.gethostbyname('10.0.1.11')
         # iface = "eth0"
-        pkt = vote_pkt(self.txn_id, self.txn_mgr, None, '10.0.1.11')
-        pkt = srp1(pkt, iface=iface, verbose=False)
+        pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
+        print('about to send packet')
+        pkt = sr1(pkt, iface=iface, verbose=False, timeout=5)
+        print('got response packet')
         print_pkt(pkt[0][1])
         return 0 # success
 
@@ -122,17 +124,17 @@ class TransactionManager(object):
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src='00:00:00:00:00:00', dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /IP(dst=ip_addr) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
