@@ -98,7 +98,7 @@ class Runner(threading.Thread):
         elif self.phase == "release":
             response = self.run_release()
         elif self.phase == "commit":
-            response = self.run_commit()=
+            response = self.run_commit()
         else:
             print("wtf")
 
@@ -126,11 +126,11 @@ class TransactionManager(object):
 
     def apply_txn(self, txn_id):
         updates = self.updates[txn_id]
-        for update_name, sw_update in updates.items():
-            sw = sw_update[update_name]["SWITCH"]
-            update = sw_update[update_name]
-            match_field_tuples = {k:tuple(v) for k,v in update["MATCH_FIELDS"]}
-            addForwardingRule(sw, update["TABLE_NAME"], match_field_tuples, update["ACTION"], update["ACTION_PARAMS"])
+        for update_name, update in updates.items():
+            sw = str(update["SWITCH"])
+            match_field_tuples = {str(k):(str(v[0]), v[1]) for k,v in update["MATCH_FIELDS"].items()}
+            action_params = {str(k):v for k,v in update['ACTION_PARAMS'].items()}
+            addForwardingRule(sw, str(update["TABLE_NAME"]), match_field_tuples, str(update["ACTION"]), action_params)
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
@@ -159,15 +159,13 @@ def addForwardingRule(switch, table_name, match_fields, action_name, action_para
         action_params=action_params)
     bmv2_switch = switches[switch]
     bmv2_switch.WriteTableEntry(table_entry)
-    print "Installed rule on %s to forward to %s via port %d" % (switch, dst_ip_addr, dst_port)
+    print "Installed rule on %s" % (switch)
 
 def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
     p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
     
-    sw_config_json = json.load(sw_config_file_path)
-
     try:
         # Establish a P4 Runtime connection to each switch
         for switch in ["s1", "s2", "s3"]:
@@ -201,8 +199,11 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
         # TODO enter loop and prompt user input for JSON file of txn
         # txn_mgr = TransactionManager(1)
         # txn_mgr.run_txn(9,None)
-        txn_mgr = TransactionManager(controller_id)
-        txn_mgr.run_txn(controller_id, sw_config_json)
+        with open(sw_config_file_path) as f:
+            sw_config_json = json.load(f)
+            txn_mgr = TransactionManager(controller_id)
+            txn_mgr.run_txn(controller_id, sw_config_json)
+            txn_mgr.apply_txn(controller_id)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
@@ -243,7 +244,7 @@ if __name__ == '__main__':
         parser.exit(1)
     if not os.path.exists(args.sw_config):
         parser.print_help()
-        print"\nSwitch config file not found: %s" %s args.sw_config
+        print "\nSwitch config file not found: %s" % args.sw_config
         parser.exit(1)
     main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
 
