@@ -126,8 +126,9 @@ class TransactionManager(object):
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
     bind_layers(Ether, Vote, type=0x9999)
+    bind_layers(TwoPCPhase, Vote, phase=0)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
-    pkt = pkt / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
+    pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface, ip_addr):
