@@ -118,7 +118,7 @@ struct metadata {
 struct headers {
     ethernet_t          ethernet;
     ipv4_t              ipv4;
-    twopc_phase_t		twopc_phase;
+    twopc_phase_t       twopc_phase;
     twopc_t             twopc;
     // packet_in_header_t  packet_in;
     // packet_out_header_t packet_out;
@@ -140,8 +140,8 @@ parser MyParser(packet_in packet,
     state parse_ethernet {
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
-            TYPE_IPV4: parse_ipv4;
             TYPE_TWOPC_PHASE: parse_twopc_phase;
+            TYPE_IPV4: parse_ipv4;
             default: accept;
         }
     }
@@ -152,26 +152,26 @@ parser MyParser(packet_in packet,
     }
 
     state parse_twopc_phase {
-    	packet.extract(hdr.twopc_phase);
-    	transition select(hdr.twopc_phase.phase) {
-    		TYPE_VOTE: parse_twopc_vote;
-    		TYPE_RELEASE: parse_twopc_release;
-    		TYPE_COMMIT: parse_twopc_commit;
-    		default: accept;
-    	}
+        packet.extract(hdr.twopc_phase);
+        transition select(hdr.twopc_phase.phase) {
+            TYPE_VOTE: parse_twopc_vote;
+            TYPE_RELEASE: parse_twopc_release;
+            TYPE_COMMIT: parse_twopc_commit;
+            default: accept;
+        }
     }
 
     state parse_twopc_vote {
-    	packet.extract(hdr.twopc.vote);
-    	transition accept;
+        packet.extract(hdr.twopc.vote);
+        transition accept;
     }
     state parse_twopc_release {
-    	packet.extract(hdr.twopc.release);
-    	transition accept;
+        packet.extract(hdr.twopc.release);
+        transition accept;
     }
     state parse_twopc_commit {
-    	packet.extract(hdr.twopc.commit);
-    	transition accept;
+        packet.extract(hdr.twopc.commit);
+        transition accept;
     }
 
 }
@@ -206,21 +206,21 @@ control MyIngress(inout headers hdr,
     }
 
     action finish() {
-    	lock_txn_mgr.write(32w0, 0);
-    	lock_txn_mgr.write(32w0, 0);
-    	hdr.twopc.finished.setValid();
-    	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
-    	hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_id;
-    	send_to_controller();
+        lock_txn_mgr.write(32w0, 0);
+        lock_txn_mgr.write(32w0, 0);
+        hdr.twopc.finished.setValid();
+        hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
+        hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_id;
+        send_to_controller();
     }
     
     action abort() {
-    	lock_txn_mgr.write(32w0, 0);
-    	lock_txn_mgr.write(32w0, 0);
-    	hdr.twopc.free.setValid();
-    	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
-    	hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_id;
-    	send_to_controller();
+        lock_txn_mgr.write(32w0, 0);
+        lock_txn_mgr.write(32w0, 0);
+        hdr.twopc.free.setValid();
+        hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
+        hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_id;
+        send_to_controller();
     }
 
     action ipv4_forward(egressSpec_t port) {
@@ -242,7 +242,7 @@ control MyIngress(inout headers hdr,
     }
     
     apply {
-        // Process only IPv4 packets.	
+        // Process only IPv4 packets.   
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
 
@@ -272,7 +272,7 @@ control MyIngress(inout headers hdr,
             abort();
         }
         else {
-	        drop();
+            drop();
         }
     }
 }
@@ -293,10 +293,10 @@ control MyEgress(inout headers hdr,
 
 control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
      apply {
-	update_checksum(
-	    hdr.ipv4.isValid(),
+    update_checksum(
+        hdr.ipv4.isValid(),
             { hdr.ipv4.version,
-	      hdr.ipv4.ihl,
+          hdr.ipv4.ihl,
               hdr.ipv4.diffserv,
               hdr.ipv4.totalLen,
               hdr.ipv4.identification,

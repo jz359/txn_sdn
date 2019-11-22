@@ -77,7 +77,7 @@ class Runner(threading.Thread):
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
         print('about to send packet')
         print_pkt(pkt)
-        pkt = sendp(pkt, iface=iface, verbose=False, timeout=5)
+        pkt = srp1(pkt, iface=iface, verbose=False, timeout=5)
         print('got response packet')
         print_pkt(pkt[0][1])
         return 0 # success
@@ -125,8 +125,8 @@ class TransactionManager(object):
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-    pkt = pkt /IP(src='10.0.2.15', dst=ip_addr) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
+    pkt = pkt / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface, ip_addr):
@@ -178,21 +178,21 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
             switches[switch] = bmv2_switch
             
         # add back forwarding rules for connectivity
-        addForwardingRule("s1", "10.0.1.11", 1)
-        addForwardingRule("s1", "10.0.2.22", 2)
-        addForwardingRule("s1", "10.0.3.33", 3)
+        # addForwardingRule("s1", "10.0.1.11", 1)
+        # addForwardingRule("s1", "10.0.2.22", 2)
+        # addForwardingRule("s1", "10.0.3.33", 3)
 
-        addForwardingRule("s2", "10.0.1.11", 2)
-        addForwardingRule("s2", "10.0.2.22", 1)
-        addForwardingRule("s2", "10.0.3.33", 3)
+        # addForwardingRule("s2", "10.0.1.11", 2)
+        # addForwardingRule("s2", "10.0.2.22", 1)
+        # addForwardingRule("s2", "10.0.3.33", 3)
 
-        addForwardingRule("s3", "10.0.1.11", 2)
-        addForwardingRule("s3", "10.0.2.22", 3)
-        addForwardingRule("s3", "10.0.3.33", 1)
+        # addForwardingRule("s3", "10.0.1.11", 2)
+        # addForwardingRule("s3", "10.0.2.22", 3)
+        # addForwardingRule("s3", "10.0.3.33", 1)
 
         # TODO enter loop and prompt user input for JSON file of txn
-        #txn_mgr = TransactionManager(1)
-        #txn_mgr.run_txn(9,None)
+        txn_mgr = TransactionManager(1)
+        txn_mgr.run_txn(9,None)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
