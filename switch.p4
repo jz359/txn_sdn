@@ -196,7 +196,7 @@ control MyIngress(inout headers hdr,
     register<bit<32>>(1) lock_txn_mgr;
     register<bit<32>>(1) lock_txn_id;
     action send_to_controller() {
-        standard_metadata.egress_spec = standard_metadata.ingress_port;
+        //standard_metadata.egress_spec = standard_metadata.ingress_port;
         // hdr.packet_in.setValid();
         // hdr.packet_in.ingress_port = standard_metadata.ingress_port;
     }

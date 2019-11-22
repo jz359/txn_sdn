@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 import argparse
 import grpc
+import json
 import os
 import socket
 import sys
@@ -97,7 +98,7 @@ class Runner(threading.Thread):
         elif self.phase == "release":
             response = self.run_release()
         elif self.phase == "commit":
-            response = self.run_commit()
+            response = self.run_commit()=
         else:
             print("wtf")
 
@@ -120,8 +121,16 @@ class TransactionManager(object):
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
         # gather responses, delete threads, and repeat for each phase 
-        r = Runner(100,200,"vote", "s1")
-        r.start()
+        #r = Runner(100,200,"vote", "s1")
+        #r.start()
+
+    def apply_txn(self, txn_id):
+        updates = self.updates[txn_id]
+        for update_name, sw_update in updates.items():
+            sw = sw_update[update_name]["SWITCH"]
+            update = sw_update[update_name]
+            match_field_tuples = {k:tuple(v) for k,v in update["MATCH_FIELDS"]}
+            addForwardingRule(sw, update["TABLE_NAME"], match_field_tuples, update["ACTION"], update["ACTION_PARAMS"])
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
@@ -141,26 +150,23 @@ def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
     pkt = pkt /IP(src='10.0.2.15', dst=ip_addr) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
-def addForwardingRule(switch, dst_ip_addr, dst_port):
+def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
     # Helper function to install forwarding rules
     table_entry = p4info_helper.buildTableEntry(
-        table_name="MyIngress.ipv4_lpm",
-        match_fields={
-            "hdr.ipv4.dstAddr": (dst_ip_addr, 32)
-        },
-        action_name="MyIngress.ipv4_forward",
-        action_params={
-            "port": dst_port,
-        })
+        table_name=table_name,
+        match_fields=match_fields,
+        action_name=action_name,
+        action_params=action_params)
     bmv2_switch = switches[switch]
     bmv2_switch.WriteTableEntry(table_entry)
     print "Installed rule on %s to forward to %s via port %d" % (switch, dst_ip_addr, dst_port)
 
-def main(p4info_file_path, bmv2_file_path, topo_file_path):
+def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
     p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
     
+    sw_config_json = json.load(sw_config_file_path)
 
     try:
         # Establish a P4 Runtime connection to each switch
@@ -193,8 +199,10 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
         # addForwardingRule("s3", "10.0.3.33", 1)
 
         # TODO enter loop and prompt user input for JSON file of txn
-        txn_mgr = TransactionManager(1)
-        txn_mgr.run_txn(9,None)
+        # txn_mgr = TransactionManager(1)
+        # txn_mgr.run_txn(9,None)
+        txn_mgr = TransactionManager(controller_id)
+        txn_mgr.run_txn(controller_id, sw_config_json)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
@@ -217,6 +225,8 @@ if __name__ == '__main__':
     parser.add_argument('--topo', help='Topology file',
                         type=str, action="store", required=False,
                         default='topology.json')
+    parser.add_argument('--sw_config', help='New configuration for switches', type=str, action="store", required=False, default='sw.config')
+    parser.add_argument('--id', help='Controller id', type=int, action="store", required=False, default=0)
     args = parser.parse_args()
 
     if not os.path.exists(args.p4info):
@@ -231,6 +241,10 @@ if __name__ == '__main__':
         parser.print_help()
         print "\nTopology file not found: %s" % args.topo
         parser.exit(1)
-    main(args.p4info, args.bmv2_json, args.topo)
+    if not os.path.exists(args.sw_config):
+        parser.print_help()
+        print"\nSwitch config file not found: %s" %s args.sw_config
+        parser.exit(1)
+    main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
 
     
