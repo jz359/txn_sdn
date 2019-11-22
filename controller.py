@@ -6,7 +6,7 @@ import socket
 import sys
 import threading
 from time import sleep
-from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1, sr1
+from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
 from scapy.all import Packet
 from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
 
@@ -125,6 +125,7 @@ class TransactionManager(object):
 
 
 def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
+    bind_layers(Ether, Vote, type=0x9999)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
