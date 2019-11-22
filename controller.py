@@ -7,7 +7,7 @@ import socket
 import sys
 import threading
 from time import sleep
-from scapy.all import sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
+from scapy.all import sniff, sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
 from scapy.all import Packet
 from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
 
@@ -51,17 +51,26 @@ def get_if():
     ifs=get_if_list()
     iface=None
     for i in get_if_list():
-        if "enp0s3" in i:
+        if "ctlr-s1" in i:
             iface=i
             break;
     if not iface:
-        print "Cannot find enp0s3 interface"
+        print "Cannot find ctlr-s1 interface"
         exit(1)
     return iface
 
 def print_pkt(pkt):
     pkt.show2()
     sys.stdout.flush()
+
+class Sniffer(threading.Thread):
+    def __init__(self):
+        super(Sniffer, self).__init__()
+
+    def run(self):
+        sniff(iface = "ctlr-s1",
+           filter='ether proto 0x9999', 
+          prn = lambda x: print_pkt(x))
 
 class Runner(threading.Thread):
     def __init__(self, txn_mgr, txn_id, phase, sw):
@@ -73,14 +82,12 @@ class Runner(threading.Thread):
 
     def run_vote(self):
         iface = get_if()
-        # sw_ip = socket.gethostbyname('10.0.1.11')
-        # iface = "eth0"
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
         print('about to send packet')
         print_pkt(pkt)
-        pkt = srp1(pkt, iface=iface, verbose=False, timeout=5)
-        print('got response packet')
-        print_pkt(pkt[0][1])
+        s = Sniffer()
+        s.start()
+        sendp(pkt, iface=iface, verbose=False)
         return 0 # success
 
     def run_release(self):
@@ -121,8 +128,8 @@ class TransactionManager(object):
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
         # gather responses, delete threads, and repeat for each phase 
-        #r = Runner(100,200,"vote", "s1")
-        #r.start()
+        r = Runner(100,200,"vote", "s1")
+        r.start()
 
     def apply_txn(self, txn_id):
         updates = self.updates[txn_id]
@@ -203,7 +210,7 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
             sw_config_json = json.load(f)
             txn_mgr = TransactionManager(controller_id)
             txn_mgr.run_txn(controller_id, sw_config_json)
-            txn_mgr.apply_txn(controller_id)
+            # txn_mgr.apply_txn(controller_id)
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:

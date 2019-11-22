@@ -196,7 +196,7 @@ control MyIngress(inout headers hdr,
     register<bit<32>>(1) lock_txn_mgr;
     register<bit<32>>(1) lock_txn_id;
     action send_to_controller() {
-        //standard_metadata.egress_spec = standard_metadata.ingress_port;
+        standard_metadata.egress_spec = standard_metadata.ingress_port;
         // hdr.packet_in.setValid();
         // hdr.packet_in.ingress_port = standard_metadata.ingress_port;
     }
@@ -263,6 +263,10 @@ control MyIngress(inout headers hdr,
                 // same thing except set confirm.status = 0 and send to cntrlr
                 hdr.twopc.confirm.status = 1;
             }
+            bit<48> temp = hdr.ethernet.dstAddr;
+            hdr.ethernet.dstAddr = hdr.ethernet.srcAddr;
+            hdr.ethernet.srcAddr = temp;
+            hdr.ethernet.etherType = 0x9999;
             send_to_controller();
         }
         else if (hdr.twopc.commit.isValid()) {
