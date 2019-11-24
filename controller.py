@@ -63,14 +63,14 @@ def vote_pkt(txn_id, txn_mgr, iface):
 def release_pkt(txn_id, txn_mgr, iface):
     bind_layers(Ether, Release, type=0x9999)
     bind_layers(TwoPCPhase, Release, phase=2)
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface):
     bind_layers(Ether, Commit, type=0x9999)
     bind_layers(TwoPCPhase, Commit, phase=3)
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=3) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
