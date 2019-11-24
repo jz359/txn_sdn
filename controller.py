@@ -29,40 +29,70 @@ response_list = {}
 access_lock = threading.Lock()
 got_all_responses = threading.Condition(access_lock)
 
+
 class Vote(Packet):
     name = "vote"
     fields_desc = [BitField("txn_mgr", 0, 32),
                     BitField("txn_id", 0, 32)]
+
 
 class Release(Packet):
     name = "release"
     fields_desc = [BitField("txn_mgr", 0, 32),
                     BitField("txn_id", 0, 32)]
 
+
 class Commit(Packet):
     name = "commit"
     fields_desc = [BitField("txn_mgr", 0, 32),
                     BitField("txn_id", 0, 32)]
 
+
 class TwoPCPhase(Packet):
     name = "phase"
     fields_desc = [BitField("phase", 0, 8)]
 
-def get_if():
+
+def vote_pkt(txn_id, txn_mgr, iface):
+    bind_layers(Ether, Vote, type=0x9999)
+    bind_layers(TwoPCPhase, Vote, phase=0)
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
+    pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
+
+def release_pkt(txn_id, txn_mgr, iface):
+    bind_layers(Ether, Release, type=0x9999)
+    bind_layers(TwoPCPhase, Release, phase=2)
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
+    pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
+
+def commit_pkt(txn_id, txn_mgr, iface):
+    bind_layers(Ether, Commit, type=0x9999)
+    bind_layers(TwoPCPhase, Commit, phase=3)
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
+    pkt = pkt /TwoPCPhase(phase=3) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
+    return pkt
+
+
+def get_if(sw):
     ifs=get_if_list()
+    target = 'ctlr-' + sw
     iface=None
     for i in get_if_list():
-        if "ctlr-s1" in i:
+        if target in i:
             iface=i
             break;
     if not iface:
-        print "Cannot find ctlr-s1 interface"
+        print "Cannot find target interface " + target
         exit(1)
     return iface
+
 
 def print_pkt(pkt):
     pkt.show2()
     sys.stdout.flush()
+
 
 class Sniffer(threading.Thread):
     def __init__(self, iface, queue):
@@ -70,14 +100,15 @@ class Sniffer(threading.Thread):
         self.iface = iface
         self.queue = queue
 
+
     def run(self):
         sniff(iface = self.iface, # "ctlr-s1"
            filter='ether proto 0x9999 and ether src ff:ff:ff:ff:ff:ff', 
           prn = lambda x: self.add_pkt(x))
 
+
     def add_pkt(self, pkt):
     	if (pkt.src == 'ff:ff:ff:ff:ff:ff'):
-    		#print_pkt(pkt)
     		self.queue.put(pkt)
     		sys.exit(0)
 
@@ -92,25 +123,42 @@ class Runner(threading.Thread):
         self.sniffer = Sniffer(iface="ctlr-"+self.sw, queue=self.queue)
         self.sniffer.start()
 
+
     def run_vote(self):
-        iface = get_if()
+        iface = get_if(self.sw)
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
-        print('about to send packet')
+        print('running vote')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
         print_pkt(resp_pkt)
+        # TODO parse for response and return
         return 0 # success
+
 
     def run_release(self):
-        # TODO implement
+        iface = get_if(self.sw)
+        pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
+        print('running release')
+        sendp(pkt, iface=iface, verbose=False)
+        resp_pkt = self.queue.get()
+        print_pkt(resp_pkt)
+        # TODO parse for response and return
         return 0 # success
+
 
     def run_commit(self):
-        # TODO implement
+        iface = get_if(self.sw)
+        pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
+        print('running commit')
+        sendp(pkt, iface=iface, verbose=False)
+        resp_pkt = self.queue.get()
+        print_pkt(resp_pkt)
+        # TODO parse for response and return
         return 0 # success
 
+
     def run(self):
-        global response_list, got_all_responses, access_lock
+        global response_list, got_all_responses, access_lock, PARTICIPANTS
         if self.phase == "vote":
             response = self.run_vote()
         elif self.phase == "release":
@@ -125,6 +173,10 @@ class Runner(threading.Thread):
             if len(response_list.keys()) == PARTICIPANTS:
                 got_all_responses.notifyAll()
 
+        # done running a phase
+        print("runner for " + self.sw + " done running phase: " + self.phase)
+        sys.exit(0)
+
 
 class TransactionManager(object):
     def __init__(self, txn_mgr):
@@ -133,14 +185,52 @@ class TransactionManager(object):
         # see api.json
         self.updates = {}
 
+
     def run_txn(self, txn_id, updates):
-        global response_list, got_all_responses, access_lock
+        global response_list, got_all_responses, access_lock, PARTICIPANTS
         self.updates[txn_id] = updates
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
         # gather responses, delete threads, and repeat for each phase 
         r = Runner(100,200,"vote", "s1")
         r.start()
+        with access_lock:
+            while (len(response_list.keys()) < PARTICIPANTS):
+                got_all_responses.wait()
+
+        num_nacks = 0
+        ack_switches = set()
+        for sw, response in response_list.items():
+            if response:
+                num_nacks += 1
+            else:
+                ack_switches.add(sw)
+
+        if num_nacks > 0:
+            print('cannot acquire all locks; proceeding to release phase')
+            # TODO release phase and exit
+            sys.exit(1)
+
+        # else, got all acks so proceed to commit phase
+
+        # TODO apply_txn here
+
+        r = Runner(100,200,'commit', 's1')
+        r.start()
+        with access_lock:
+            while (len(response_list.keys()) < PARTICIPANTS):
+                got_all_responses.wait()
+
+        num_nacks = 0
+        ack_switches = set()
+        for sw, response in response_list.items():
+            if response:
+                num_nacks += 1
+            else:
+                ack_switches.add(sw)
+
+        print('commit phase done and all locks were released!')
+
 
     def apply_txn(self, txn_id):
         updates = self.updates[txn_id]
@@ -150,23 +240,6 @@ class TransactionManager(object):
             action_params = {str(k):v for k,v in update['ACTION_PARAMS'].items()}
             addForwardingRule(sw, str(update["TABLE_NAME"]), match_field_tuples, str(update["ACTION"]), action_params)
 
-
-def vote_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, Vote, type=0x9999)
-    bind_layers(TwoPCPhase, Vote, phase=0)
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
-    pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
-    return pkt
-
-def release_pkt(txn_id, txn_mgr, iface):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-    pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
-    return pkt
-
-def commit_pkt(txn_id, txn_mgr, iface):
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-    pkt = pkt /TwoPCPhase(phase=4) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
-    return pkt
 
 def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
     # Helper function to install forwarding rules
