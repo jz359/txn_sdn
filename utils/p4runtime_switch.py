@@ -104,7 +104,7 @@ class P4RuntimeSwitch(P4Switch):
             if not intf.IP():
                 args.extend(['-i', str(port) + "@" + intf.name])
         if self.name=='s1':
-            args.extend(['-i', str(port+1) + "@" + "s1-ctlr"])
+            args.extend(['-i', str(port+1) + "@" + self.name + "-ctlr"])
         if self.pcap_dump:
             args.append("--pcap %s" % self.pcap_dump)
         if self.nanomsg:

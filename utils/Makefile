@@ -6,6 +6,7 @@ P4C = p4c-bm2-ss
 P4C_ARGS += --p4runtime-files $(BUILD_DIR)/$(basename $@).p4.p4info.txt
 
 RUN_SCRIPT = utils/run_exercise.py
+VETH_EXTENSION = utils/veth_extension.py
 
 ifndef TOPO
 TOPO = topology.json
@@ -32,6 +33,7 @@ endif
 all: run
 
 run: build
+	sudo python $(VETH_EXTENSION) -t $(TOPO)
 	sudo python $(RUN_SCRIPT) -t $(TOPO) $(run_args)
 
 stop:
