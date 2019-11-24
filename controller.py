@@ -194,8 +194,9 @@ class TransactionManager(object):
         # gather responses, delete threads, and repeat for each phase 
         r = Runner(100,200,"vote", "s1")
         r.start()
-        while (len(response_list.keys()) < PARTICIPANTS):
-            got_all_responses.wait()
+        with access_lock:
+            while (len(response_list.keys()) < PARTICIPANTS):
+                got_all_responses.wait()
 
         num_nacks = 0
         ack_switches = set()
@@ -216,8 +217,9 @@ class TransactionManager(object):
 
         r = Runner(100,200,'commit', 's1')
         r.start()
-        while (len(response_list.keys()) < PARTICIPANTS):
-            got_all_responses.wait()
+        with access_lock:
+            while (len(response_list.keys()) < PARTICIPANTS):
+                got_all_responses.wait()
 
         num_nacks = 0
         ack_switches = set()
