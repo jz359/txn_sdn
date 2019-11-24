@@ -270,9 +270,17 @@ control MyIngress(inout headers hdr,
             send_to_controller();
         }
         else if (hdr.twopc.commit.isValid()) {
+            bit<48> temp = hdr.ethernet.dstAddr;
+            hdr.ethernet.dstAddr = hdr.ethernet.srcAddr;
+            hdr.ethernet.srcAddr = temp;
+            hdr.ethernet.etherType = 0x9999;
             finish();
         }
         else if (hdr.twopc.release.isValid()) {
+            bit<48> temp = hdr.ethernet.dstAddr;
+            hdr.ethernet.dstAddr = hdr.ethernet.srcAddr;
+            hdr.ethernet.srcAddr = temp;
+            hdr.ethernet.etherType = 0x9999;
             abort();
         }
         else {
