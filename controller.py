@@ -3,6 +3,7 @@ import argparse
 import grpc
 import json
 import os
+import Queue
 import socket
 import sys
 import threading
@@ -64,13 +65,21 @@ def print_pkt(pkt):
     sys.stdout.flush()
 
 class Sniffer(threading.Thread):
-    def __init__(self):
+    def __init__(self, iface, queue):
         super(Sniffer, self).__init__()
+        self.iface = iface
+        self.queue = queue
 
     def run(self):
-        sniff(iface = "ctlr-s1",
-           filter='ether proto 0x9999', 
-          prn = lambda x: print_pkt(x))
+        sniff(iface = self.iface, # "ctlr-s1"
+           filter='ether proto 0x9999 and ether src ff:ff:ff:ff:ff:ff', 
+          prn = lambda x: self.add_pkt(x))
+
+    def add_pkt(self, pkt):
+    	if (pkt.src == 'ff:ff:ff:ff:ff:ff'):
+    		#print_pkt(pkt)
+    		self.queue.put(pkt)
+    		sys.exit(0)
 
 class Runner(threading.Thread):
     def __init__(self, txn_mgr, txn_id, phase, sw):
@@ -79,15 +88,17 @@ class Runner(threading.Thread):
         self.txn_id = txn_id
         self.phase = phase
         self.sw = sw
+        self.queue = Queue.Queue()
+        self.sniffer = Sniffer(iface="ctlr-"+self.sw, queue=self.queue)
+        self.sniffer.start()
 
     def run_vote(self):
         iface = get_if()
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
         print('about to send packet')
-        print_pkt(pkt)
-        s = Sniffer()
-        s.start()
         sendp(pkt, iface=iface, verbose=False)
+        resp_pkt = self.queue.get()
+        print_pkt(resp_pkt)
         return 0 # success
 
     def run_release(self):
@@ -149,12 +160,12 @@ def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
 
 def release_pkt(txn_id, txn_mgr, iface, ip_addr):
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-    pkt = pkt /IP(src='10.0.2.15', dst=ip_addr) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
+    pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
-    pkt = pkt /IP(src='10.0.2.15', dst=ip_addr) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
+    pkt = pkt /TwoPCPhase(phase=4) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
