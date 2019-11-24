@@ -94,7 +94,7 @@ class Runner(threading.Thread):
 
     def run_vote(self):
         iface = get_if()
-        pkt = vote_pkt(self.txn_id, self.txn_mgr, iface, '10.0.1.11')
+        pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
         print('about to send packet')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
@@ -151,19 +151,19 @@ class TransactionManager(object):
             addForwardingRule(sw, str(update["TABLE_NAME"]), match_field_tuples, str(update["ACTION"]), action_params)
 
 
-def vote_pkt(txn_id, txn_mgr, iface, ip_addr):
+def vote_pkt(txn_id, txn_mgr, iface):
     bind_layers(Ether, Vote, type=0x9999)
     bind_layers(TwoPCPhase, Vote, phase=0)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
-def release_pkt(txn_id, txn_mgr, iface, ip_addr):
+def release_pkt(txn_id, txn_mgr, iface):
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
-def commit_pkt(txn_id, txn_mgr, iface, ip_addr):
+def commit_pkt(txn_id, txn_mgr, iface):
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt /TwoPCPhase(phase=4) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
