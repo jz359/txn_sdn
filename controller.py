@@ -174,7 +174,7 @@ class Runner(threading.Thread):
                 got_all_responses.notifyAll()
 
         # done running a phase
-        print("runner for " + self.sw " done running phase: " + self.phase)
+        print("runner for " + self.sw + " done running phase: " + self.phase)
         sys.exit(0)
 
 
