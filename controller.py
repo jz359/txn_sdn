@@ -10,7 +10,7 @@ import threading
 from time import sleep
 from scapy.all import sniff, sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
 from scapy.all import Packet
-from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, BitField
+from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, ShortField
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'utils/'))
@@ -32,25 +32,25 @@ got_all_responses = threading.Condition(access_lock)
 
 class Vote(Packet):
     name = "vote"
-    fields_desc = [BitField("txn_mgr", 0, 32),
-                    BitField("txn_id", 0, 32)]
+    fields_desc = [ShortField("txn_mgr", 0),
+                    ShortField("txn_id", 0)]
 
 
 class Release(Packet):
     name = "release"
-    fields_desc = [BitField("txn_mgr", 0, 32),
-                    BitField("txn_id", 0, 32)]
+    fields_desc = [ShortField("txn_mgr", 0),
+                    ShortField("txn_id", 0)]
 
 
 class Commit(Packet):
     name = "commit"
-    fields_desc = [BitField("txn_mgr", 0, 32),
-                    BitField("txn_id", 0, 32)]
+    fields_desc = [ShortField("txn_mgr", 0),
+                    ShortField("txn_id", 0)]
 
 
 class TwoPCPhase(Packet):
     name = "phase"
-    fields_desc = [BitField("phase", 0, 8)]
+    fields_desc = [ShortField("phase", 0)]
 
 
 def vote_pkt(txn_id, txn_mgr, iface):
@@ -124,15 +124,14 @@ class Runner(threading.Thread):
         self.sniffer.start()
 
 
-    def get_packet_layer(packet, desired_layer):
+    def get_packet_layer(self, packet, desired_layer):
 	    counter = 0
 	    while True:
 	        layer = packet.getlayer(counter)
 	        if layer is None:
 	            break
 	        if layer.name == desired_layer:
-	        	yield layer
-	        	return
+	        	return layer
 	        counter += 1
 
     def run_vote(self):
@@ -141,12 +140,11 @@ class Runner(threading.Thread):
         # print('running vote')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
-<<<<<<< HEAD
-        self.get_packet_layer(resp_pkt, 'vote')
-=======
-        # print_pkt(resp_pkt)
-        print('got a vote from ' + self.sw)
->>>>>>> ef0a4e1b943d01541739bd56f868991f2d4e01ce
+        layer = self.get_packet_layer(resp_pkt, 'vote')
+        print_pkt(resp_pkt)
+        print(layer.txn_mgr)
+        print(layer.txn_id)
+        # print(layer.status)
         # TODO parse for response and return
 
         return 0 # success
@@ -158,7 +156,7 @@ class Runner(threading.Thread):
         print('running release')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
-        print_pkt(resp_pkt)
+        #print_pkt(resp_pkt)
         # TODO parse for response and return
         return 0 # success
 
