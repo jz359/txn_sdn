@@ -124,15 +124,26 @@ class Runner(threading.Thread):
         self.sniffer.start()
 
 
+    def get_packet_layer(packet, desired_layer):
+	    counter = 0
+	    while True:
+	        layer = packet.getlayer(counter)
+	        if layer is None:
+	            break
+	        if layer.name == desired_layer:
+	        	yield layer
+	        	return
+	        counter += 1
+
     def run_vote(self):
         iface = get_if(self.sw)
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
         print('running vote')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
-        # print_pkt(resp_pkt)
-        print('got a vote')
+        self.get_packet_layer(resp_pkt, 'vote')
         # TODO parse for response and return
+
         return 0 # success
 
 
