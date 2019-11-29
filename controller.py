@@ -23,7 +23,7 @@ switches = {}
 p4info_helper = None
 txn_mgr = None
 txn_id = 0
-PARTICIPANTS = 0
+PARTICIPANTS = 1
 
 response_list = {}
 access_lock = threading.Lock()
@@ -130,7 +130,8 @@ class Runner(threading.Thread):
         print('running vote')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
-        print_pkt(resp_pkt)
+        # print_pkt(resp_pkt)
+        print('got a vote')
         # TODO parse for response and return
         return 0 # success
 
@@ -152,7 +153,8 @@ class Runner(threading.Thread):
         print('running commit')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
-        print_pkt(resp_pkt)
+        # print_pkt(resp_pkt)
+        print('got commit ok')
         # TODO parse for response and return
         return 0 # success
 
@@ -191,7 +193,7 @@ class TransactionManager(object):
         self.updates[txn_id] = updates
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
-        # gather responses, delete threads, and repeat for each phase 
+        # gather responses, delete threads, and repeat for each phase
         r = Runner(100,200,"vote", "s1")
         r.start()
         with access_lock:
