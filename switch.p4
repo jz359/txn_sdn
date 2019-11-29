@@ -210,7 +210,7 @@ control MyIngress(inout headers hdr,
         lock_txn_mgr.write(32w0, 0);
         hdr.twopc.finished.setValid();
         hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
-        hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_id;
+        hdr.twopc.finished.txn_id = hdr.twopc.commit.txn_id;
         send_to_controller();
     }
     
@@ -219,7 +219,7 @@ control MyIngress(inout headers hdr,
         lock_txn_mgr.write(32w0, 0);
         hdr.twopc.free.setValid();
         hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
-        hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_id;
+        hdr.twopc.free.txn_id = hdr.twopc.commit.txn_id;
         send_to_controller();
     }
 
