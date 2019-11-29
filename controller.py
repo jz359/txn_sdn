@@ -138,10 +138,15 @@ class Runner(threading.Thread):
     def run_vote(self):
         iface = get_if(self.sw)
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
-        print('running vote')
+        # print('running vote')
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
+<<<<<<< HEAD
         self.get_packet_layer(resp_pkt, 'vote')
+=======
+        # print_pkt(resp_pkt)
+        print('got a vote from ' + self.sw)
+>>>>>>> ef0a4e1b943d01541739bd56f868991f2d4e01ce
         # TODO parse for response and return
 
         return 0 # success
@@ -165,7 +170,7 @@ class Runner(threading.Thread):
         sendp(pkt, iface=iface, verbose=False)
         resp_pkt = self.queue.get()
         # print_pkt(resp_pkt)
-        print('got commit ok')
+        print('got commit ok from ' + self.sw)
         # TODO parse for response and return
         return 0 # success
 
@@ -225,6 +230,9 @@ class TransactionManager(object):
                 num_nacks += 1
             else:
                 ack_switches.add(sw)
+
+        # clear the response list
+        response_list = {}
 
         if num_nacks > 0:
             print('cannot acquire all locks; proceeding to release phase')
