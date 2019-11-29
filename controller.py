@@ -10,7 +10,7 @@ import threading
 from time import sleep
 from scapy.all import sniff, sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
 from scapy.all import Packet
-from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, ShortField
+from scapy.all import Ether, IP, UDP, TCP, IntField, StrFixedLenField, XByteField, ShortField, BitField
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'utils/'))
@@ -32,25 +32,25 @@ got_all_responses = threading.Condition(access_lock)
 
 class Vote(Packet):
     name = "vote"
-    fields_desc = [ShortField("txn_mgr", 0),
-                    ShortField("txn_id", 0)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 
 class Release(Packet):
     name = "release"
-    fields_desc = [ShortField("txn_mgr", 0),
-                    ShortField("txn_id", 0)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 
 class Commit(Packet):
     name = "commit"
-    fields_desc = [ShortField("txn_mgr", 0),
-                    ShortField("txn_id", 0)]
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
 
 
 class TwoPCPhase(Packet):
     name = "phase"
-    fields_desc = [ShortField("phase", 0)]
+    fields_desc = [BitField("phase", 0, 32)]
 
 
 def vote_pkt(txn_id, txn_mgr, iface):
@@ -143,7 +143,7 @@ class Runner(threading.Thread):
             resp_pkt = self.queue.get(timeout=5)
         except:
             return 1 # failure
-        print('got a vote from ' + self.sw)=
+        print('got a vote from ' + self.sw)
         # TODO parse for response and return
         layer = self.get_packet_layer(resp_pkt, 'vote')
         print_pkt(resp_pkt)
