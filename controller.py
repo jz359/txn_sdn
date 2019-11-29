@@ -139,14 +139,16 @@ class Runner(threading.Thread):
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
         # print('running vote')
         sendp(pkt, iface=iface, verbose=False)
-        resp_pkt = self.queue.get()
+        try:
+            resp_pkt = self.queue.get(timeout=5)
+        except:
+            return 1 # failure
+        print('got a vote from ' + self.sw)=
+        # TODO parse for response and return
         layer = self.get_packet_layer(resp_pkt, 'vote')
         print_pkt(resp_pkt)
         print(layer.txn_mgr)
         print(layer.txn_id)
-        # print(layer.status)
-        # TODO parse for response and return
-
         return 0 # success
 
 
@@ -155,8 +157,10 @@ class Runner(threading.Thread):
         pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
         print('running release')
         sendp(pkt, iface=iface, verbose=False)
-        resp_pkt = self.queue.get()
-        #print_pkt(resp_pkt)
+        try:
+            resp_pkt = self.queue.get(timeout=5)
+        except:
+            return 1 # failure
         # TODO parse for response and return
         return 0 # success
 
@@ -166,7 +170,10 @@ class Runner(threading.Thread):
         pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
         print('running commit')
         sendp(pkt, iface=iface, verbose=False)
-        resp_pkt = self.queue.get()
+        try:
+            resp_pkt = self.queue.get(timeout=5)
+        except:
+            return 1 # failure
         # print_pkt(resp_pkt)
         print('got commit ok from ' + self.sw)
         # TODO parse for response and return
@@ -235,7 +242,7 @@ class TransactionManager(object):
         if num_nacks > 0:
             print('cannot acquire all locks; proceeding to release phase')
             # TODO release phase and exit
-            sys.exit(1)
+            return
 
         # else, got all acks so proceed to commit phase
         # TODO apply_txn here
