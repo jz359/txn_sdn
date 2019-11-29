@@ -54,21 +54,21 @@ class TwoPCPhase(Packet):
 
 
 def vote_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, Vote, type=0x9999)
+    bind_layers(Ether, TwoPCPhase, type=0x9999)
     bind_layers(TwoPCPhase, Vote, phase=0)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, Release, type=0x9999)
+    bind_layers(Ether, TwoPCPhase, type=0x9999)
     bind_layers(TwoPCPhase, Release, phase=2)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, Commit, type=0x9999)
+    bind_layers(Ether, TwoPCPhase, type=0x9999)
     bind_layers(TwoPCPhase, Commit, phase=3)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=3) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
@@ -137,7 +137,9 @@ class Runner(threading.Thread):
     def run_vote(self):
         iface = get_if(self.sw)
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
-        # print('running vote')
+        print('running vote')
+        print(self.txn_mgr,self.txn_id)
+       # print_pkt(pkt)
         sendp(pkt, iface=iface, verbose=False)
         try:
             resp_pkt = self.queue.get(timeout=5)
