@@ -199,10 +199,6 @@ class TransactionManager(object):
         self.set_participants(updates)
         PARTICIPANTS = len(self.participants)
 
-        # TODO create and spawn Runner threads for each switch in [updates]
-        # set PARTICIPANTS, start the threads, and wait on the cv
-        # gather responses, delete threads, and repeat for each phase
-
         for sw in self.participants:
             r = Runner(100,200,"vote", sw)
             r.start()
