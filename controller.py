@@ -191,7 +191,7 @@ class TransactionManager(object):
 
     def set_participants(self, updates):
         for _, update in updates.items():
-            self.participants.add(update['SWITCH'])
+            self.participants.add(str(update['SWITCH']))
 
     def run_txn(self, txn_id, updates):
         global response_list, got_all_responses, access_lock, PARTICIPANTS
