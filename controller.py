@@ -186,16 +186,27 @@ class TransactionManager(object):
         # map of txn_id to JSON of updates to apply once every lock is held
         # see api.json
         self.updates = {}
+        self.participants = set()
 
+
+    def set_participants(self, updates):
+        for _, update in updates.items():
+            self.participants.add(updates['SWITCH'])
 
     def run_txn(self, txn_id, updates):
         global response_list, got_all_responses, access_lock, PARTICIPANTS
         self.updates[txn_id] = updates
+        self.set_participants(updates)
+        PARTICIPANTS = len(self.participants)
+
         # TODO create and spawn Runner threads for each switch in [updates]
         # set PARTICIPANTS, start the threads, and wait on the cv
         # gather responses, delete threads, and repeat for each phase
-        r = Runner(100,200,"vote", "s1")
-        r.start()
+
+        for sw in self.participants:
+            r = Runner(100,200,"vote", sw)
+            r.start()
+
         with access_lock:
             while (len(response_list.keys()) < PARTICIPANTS):
                 got_all_responses.wait()
@@ -214,11 +225,12 @@ class TransactionManager(object):
             sys.exit(1)
 
         # else, got all acks so proceed to commit phase
-
         # TODO apply_txn here
 
-        r = Runner(100,200,'commit', 's1')
-        r.start()
+        for sw in self.participants:
+            r = Runner(100,200,"commit", sw)
+            r.start()
+
         with access_lock:
             while (len(response_list.keys()) < PARTICIPANTS):
                 got_all_responses.wait()
