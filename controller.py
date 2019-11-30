@@ -164,40 +164,34 @@ class Runner(threading.Thread):
         except:
             return 1 # failure
         print('got a vote from ' + self.sw)
-        print_pkt(resp_pkt)
-        # TODO parse for response and return
         layer = self.get_packet_layer(resp_pkt, 'confirm')
-        
-        print(layer.txn_mgr)
-        print(layer.txn_id)
-        return 0 # success
-
+        return layer.status
 
     def run_release(self):
-        # iface = get_if(self.sw)
-        # pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
-        # print('running release')
-        # sendp(pkt, iface=iface, verbose=False)
-        # try:
-        #     resp_pkt = self.queue.get(timeout=5)
-        # except:
-        #     return 1 # failure
-        # # TODO parse for response and return
+        iface = get_if(self.sw)
+        pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
+        print('running release')
+        sendp(pkt, iface=iface, verbose=False)
+        try:
+            resp_pkt = self.queue.get(timeout=5)
+        except:
+            return 1 # failure
+        layer = self.get_packet_layer(resp_pkt, 'free')
         return 0 # success
 
 
     def run_commit(self):
-        # iface = get_if(self.sw)
-        # pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
-        # print('running commit')
-        # sendp(pkt, iface=iface, verbose=False)
-        # try:
-        #     resp_pkt = self.queue.get(timeout=5)
-        # except:
-        #     return 1 # failure
-        # # print_pkt(resp_pkt)
-        # print('got commit ok from ' + self.sw)
-        # # TODO parse for response and return
+        iface = get_if(self.sw)
+        pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
+        print('running commit')
+        sendp(pkt, iface=iface, verbose=False)
+        try:
+            resp_pkt = self.queue.get(timeout=5)
+        except:
+            return 1 # failure
+        # print_pkt(resp_pkt)
+        print('got commit ok from ' + self.sw)
+        layer = self.get_packet_layer(resp_pkt, 'finished')
         return 0 # success
 
 
@@ -242,7 +236,7 @@ class TransactionManager(object):
         PARTICIPANTS = len(self.participants)
 
         for sw in self.participants:
-            r = Runner(100,200,"vote", sw)
+            r = Runner(self.txn_mgr,txn_id,"vote", sw)
             r.start()
 
         with access_lock:
@@ -262,28 +256,24 @@ class TransactionManager(object):
 
         if num_nacks > 0:
             print('cannot acquire all locks; proceeding to release phase')
-            # TODO release phase and exit
+            for sw in self.participants:
+                r = Runner(self.txn_mgr,txn_id,"release", sw)
+                r.start()
+            with access_lock:
+                while (len(response_list.keys()) < PARTICIPANTS):
+                    got_all_responses.wait()
             return
 
         # else, got all acks so proceed to commit phase
-        # TODO apply_txn here
+        self.apply_txn(txn_id)
 
         for sw in self.participants:
-            r = Runner(100,200,"commit", sw)
+            r = Runner(self.txn_mgr,txn_id,"commit", sw)
             r.start()
 
         with access_lock:
             while (len(response_list.keys()) < PARTICIPANTS):
                 got_all_responses.wait()
-
-        num_nacks = 0
-        ack_switches = set()
-        for sw, response in response_list.items():
-            if response:
-                num_nacks += 1
-            else:
-                ack_switches.add(sw)
-
         print('commit phase done and all locks were released!')
 
 

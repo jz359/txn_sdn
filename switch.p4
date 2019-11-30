@@ -20,6 +20,7 @@ typedef bit<32> ip4Addr_t;
 typedef bit<9>  switch_port_t;
 
 #define MAX_CHANGES 10
+const bit<16>        TYPE_IPV4 = 0x800;
 const switch_port_t  CONTROLLER_PORT = 255;
 
 
@@ -29,6 +30,20 @@ header ethernet_t {
     bit<16>   etherType;
 }
 
+header ipv4_t {
+    bit<4>    version;
+    bit<4>    ihl;
+    bit<8>    diffserv;
+    bit<16>   totalLen;
+    bit<16>   identification;
+    bit<3>    flags;
+    bit<13>   fragOffset;
+    bit<8>    ttl;
+    bit<8>    protocol;
+    bit<16>   hdrChecksum;
+    ip4Addr_t srcAddr;
+    ip4Addr_t dstAddr;
+}
 
 /* BEGIN TXN_SDN HEADERS */
 
@@ -90,6 +105,7 @@ struct metadata {
 
 struct headers {
     ethernet_t          ethernet;
+    ipv4_t              ipv4;
     twopc_phase_t       twopc_phase;
     twopc_t             twopc;
     // packet_in_header_t  packet_in;
@@ -113,8 +129,14 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
             TYPE_TWOPC_PHASE: parse_twopc_phase;
+            TYPE_IPV4: parse_ipv4;
             default: accept;
         }
+    }
+
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition accept;
     }
 
     state parse_twopc_phase {
@@ -175,8 +197,10 @@ control MyIngress(inout headers hdr,
         lock_txn_mgr.write(32w0, 0);
         lock_txn_mgr.write(32w0, 0);
         hdr.twopc.finished.setValid();
+        hdr.twopc_phase.phase = TYPE_FINISHED;
         hdr.twopc.finished.txn_mgr = hdr.twopc.commit.txn_mgr;
         hdr.twopc.finished.txn_id = hdr.twopc.commit.txn_id;
+        hdr.twopc.commit.setInvalid();
         send_to_controller();
     }
     
@@ -184,12 +208,13 @@ control MyIngress(inout headers hdr,
         lock_txn_mgr.write(32w0, 0);
         lock_txn_mgr.write(32w0, 0);
         hdr.twopc.free.setValid();
-        hdr.twopc.free.txn_mgr = hdr.twopc.commit.txn_mgr;
-        hdr.twopc.free.txn_id = hdr.twopc.commit.txn_id;
+        hdr.twopc_phase.phase = TYPE_FREE; 
+        hdr.twopc.free.txn_mgr = hdr.twopc.release.txn_mgr;
+        hdr.twopc.free.txn_id = hdr.twopc.release.txn_id;
+        hdr.twopc.release.setInvalid();
         send_to_controller();
     }
 
-    
     table debug {
         key = {
             hdr.twopc.vote.txn_id: exact;
@@ -201,17 +226,41 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = NoAction();
     }
+
+    action ipv4_forward(egressSpec_t port) {
+        standard_metadata.egress_spec = port;
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
+
+    table ipv4_lpm {
+        key = {
+            hdr.ipv4.dstAddr: lpm;
+        }
+        actions = {
+            ipv4_forward;
+            drop;
+            NoAction;
+        }
+        size = 1024;
+        default_action = NoAction();
+    }
+    
     apply {
-        
-        if (hdr.twopc.vote.isValid()) {
+        // Process only IPv4 packets.   
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
+
+        } else if (hdr.twopc.vote.isValid()) {
             debug.apply();
             bit<32> mgr = 0;
             bit<32> id = 0;
             lock_txn_mgr.read(mgr, 0);
             lock_txn_id.read(id, 0);
+            hdr.twopc_phase.phase = TYPE_CONFIRM;
             hdr.twopc.confirm.setValid();
             hdr.twopc.confirm.txn_mgr = hdr.twopc.vote.txn_mgr;
             hdr.twopc.confirm.txn_id = hdr.twopc.vote.txn_id;
+            hdr.twopc.vote.setInvalid();
             if (mgr == 0) {
                 lock_txn_mgr.write(32w0, hdr.twopc.vote.txn_mgr);
                 lock_txn_id.write(32w0, hdr.twopc.vote.txn_id);
@@ -263,7 +312,21 @@ control MyEgress(inout headers hdr,
 
 control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
      apply {
-    
+    update_checksum(
+        hdr.ipv4.isValid(),
+            { hdr.ipv4.version,
+          hdr.ipv4.ihl,
+              hdr.ipv4.diffserv,
+              hdr.ipv4.totalLen,
+              hdr.ipv4.identification,
+              hdr.ipv4.flags,
+              hdr.ipv4.fragOffset,
+              hdr.ipv4.ttl,
+              hdr.ipv4.protocol,
+              hdr.ipv4.srcAddr,
+              hdr.ipv4.dstAddr },
+            hdr.ipv4.hdrChecksum,
+            HashAlgorithm.csum16);
     }
 }
 
@@ -274,6 +337,7 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
+        packet.emit(hdr.ipv4);
         packet.emit(hdr.twopc_phase);
         packet.emit(hdr.twopc);
     }
