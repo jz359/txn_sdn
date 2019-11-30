@@ -47,33 +47,51 @@ class Commit(Packet):
     fields_desc = [BitField("txn_mgr", 0, 32),
                     BitField("txn_id", 0, 32)]
 
+class Finished(Packet):
+    name = "finished"
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
+
+class Confirm(Packet):
+    name = "confirm"
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32), 
+                    BitField("status", 2, 8)]
+
+class Free(Packet):
+    name = "free"
+    fields_desc = [BitField("txn_mgr", 0, 32),
+                    BitField("txn_id", 0, 32)]
+
+
 
 class TwoPCPhase(Packet):
     name = "phase"
-    fields_desc = [BitField("phase", 0, 32)]
+    fields_desc = [BitField("phase", 0, 8)]
 
+
+bind_layers(Ether, TwoPCPhase, type=0x9999)
+bind_layers(TwoPCPhase, Vote, phase=0)
+bind_layers(TwoPCPhase, Release, phase=2)
+bind_layers(TwoPCPhase, Finished, phase=4)
+bind_layers(TwoPCPhase, Confirm, phase=1)
+bind_layers(TwoPCPhase, Commit, phase=3)
+bind_layers(TwoPCPhase, Free, phase=5)
 
 def vote_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, TwoPCPhase, type=0x9999)
-    bind_layers(TwoPCPhase, Vote, phase=0)
-    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
+    pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff')
     pkt = pkt / TwoPCPhase(phase=0) / Vote(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def release_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, TwoPCPhase, type=0x9999)
-    bind_layers(TwoPCPhase, Release, phase=2)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=2) / Release(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
 
 def commit_pkt(txn_id, txn_mgr, iface):
-    bind_layers(Ether, TwoPCPhase, type=0x9999)
-    bind_layers(TwoPCPhase, Commit, phase=3)
     pkt =  Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff', type=0x9999)
     pkt = pkt /TwoPCPhase(phase=3) / Commit(txn_mgr=txn_mgr, txn_id=txn_id)
     return pkt
-
 
 def get_if(sw):
     ifs=get_if_list()
@@ -108,9 +126,9 @@ class Sniffer(threading.Thread):
 
 
     def add_pkt(self, pkt):
-    	if (pkt.src == 'ff:ff:ff:ff:ff:ff'):
-    		self.queue.put(pkt)
-    		sys.exit(0)
+        if (pkt.src == 'ff:ff:ff:ff:ff:ff'):
+            self.queue.put(pkt)
+            sys.exit(0)
 
 class Runner(threading.Thread):
     def __init__(self, txn_mgr, txn_id, phase, sw):
@@ -125,60 +143,61 @@ class Runner(threading.Thread):
 
 
     def get_packet_layer(self, packet, desired_layer):
-	    counter = 0
-	    while True:
-	        layer = packet.getlayer(counter)
-	        if layer is None:
-	            break
-	        if layer.name == desired_layer:
-	        	return layer
-	        counter += 1
+        counter = 0
+        while True:
+            layer = packet.getlayer(counter)
+            if layer is None:
+                break
+            if layer.name == desired_layer:
+                return layer
+            counter += 1
 
     def run_vote(self):
         iface = get_if(self.sw)
         pkt = vote_pkt(self.txn_id, self.txn_mgr, iface)
         print('running vote')
         print(self.txn_mgr,self.txn_id)
-       # print_pkt(pkt)
+        print_pkt(pkt)
         sendp(pkt, iface=iface, verbose=False)
         try:
             resp_pkt = self.queue.get(timeout=5)
         except:
             return 1 # failure
         print('got a vote from ' + self.sw)
-        # TODO parse for response and return
-        layer = self.get_packet_layer(resp_pkt, 'vote')
         print_pkt(resp_pkt)
+        # TODO parse for response and return
+        layer = self.get_packet_layer(resp_pkt, 'confirm')
+        
         print(layer.txn_mgr)
         print(layer.txn_id)
         return 0 # success
 
 
     def run_release(self):
-        iface = get_if(self.sw)
-        pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
-        print('running release')
-        sendp(pkt, iface=iface, verbose=False)
-        try:
-            resp_pkt = self.queue.get(timeout=5)
-        except:
-            return 1 # failure
-        # TODO parse for response and return
+        # iface = get_if(self.sw)
+        # pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
+        # print('running release')
+        # sendp(pkt, iface=iface, verbose=False)
+        # try:
+        #     resp_pkt = self.queue.get(timeout=5)
+        # except:
+        #     return 1 # failure
+        # # TODO parse for response and return
         return 0 # success
 
 
     def run_commit(self):
-        iface = get_if(self.sw)
-        pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
-        print('running commit')
-        sendp(pkt, iface=iface, verbose=False)
-        try:
-            resp_pkt = self.queue.get(timeout=5)
-        except:
-            return 1 # failure
-        # print_pkt(resp_pkt)
-        print('got commit ok from ' + self.sw)
-        # TODO parse for response and return
+        # iface = get_if(self.sw)
+        # pkt = commit_pkt(self.txn_id, self.txn_mgr, iface)
+        # print('running commit')
+        # sendp(pkt, iface=iface, verbose=False)
+        # try:
+        #     resp_pkt = self.queue.get(timeout=5)
+        # except:
+        #     return 1 # failure
+        # # print_pkt(resp_pkt)
+        # print('got commit ok from ' + self.sw)
+        # # TODO parse for response and return
         return 0 # success
 
 
