@@ -163,14 +163,14 @@ class Runner(threading.Thread):
             resp_pkt = self.queue.get(timeout=5)
         except:
             return 1 # failure
-        print('got a vote from ' + self.sw)
+        print('CONTROLLER ' + str(self.txn_mgr) + ': got a vote from ' + self.sw)
         layer = self.get_packet_layer(resp_pkt, 'confirm')
         return layer.status
 
     def run_release(self):
         iface = get_if(self.sw)
         pkt = release_pkt(self.txn_id, self.txn_mgr, iface)
-        print('running release')
+        print('CONTROLLER ' + str(self.txn_mgr) + ': running release')
         sendp(pkt, iface=iface, verbose=False)
         try:
             resp_pkt = self.queue.get(timeout=5)
@@ -190,7 +190,7 @@ class Runner(threading.Thread):
         except:
             return 1 # failure
         # print_pkt(resp_pkt)
-        print('got commit ok from ' + self.sw)
+        print('CONTROLLER ' + str(self.txn_mgr) + ': got commit ok from ' + self.sw)
         layer = self.get_packet_layer(resp_pkt, 'finished')
         return 0 # success
 
@@ -212,7 +212,7 @@ class Runner(threading.Thread):
                 got_all_responses.notifyAll()
 
         # done running a phase
-        print("runner for " + self.sw + " done running phase: " + self.phase)
+        print('CONTROLLER ' + str(self.txn_mgr) + ': runner for " + self.sw + " done running phase: " + self.phase)
         sys.exit(0)
 
 
@@ -255,7 +255,7 @@ class TransactionManager(object):
         response_list = {}
 
         if num_nacks > 0:
-            print('cannot acquire all locks; proceeding to release phase')
+            print('CONTROLLER ' + str(self.txn_mgr) + ': cannot acquire all locks; proceeding to release phase')
             for sw in self.participants:
                 r = Runner(self.txn_mgr,txn_id,"release", sw)
                 r.start()
@@ -274,7 +274,7 @@ class TransactionManager(object):
         with access_lock:
             while (len(response_list.keys()) < PARTICIPANTS):
                 got_all_responses.wait()
-        print('commit phase done and all locks were released!')
+        print('CONTROLLER ' + str(self.txn_mgr) + ': commit phase done and all locks were released!')
 
 
     def apply_txn(self, txn_id):
@@ -318,23 +318,7 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
                                                     bmv2_json_file_path=bmv2_file_path)
             print "Installed P4 Program using SetForwardingPipelineConfig on %s" % bmv2_switch.name
             switches[switch] = bmv2_switch
-            
-        # add back forwarding rules for connectivity
-        # addForwardingRule("s1", "10.0.1.11", 1)
-        # addForwardingRule("s1", "10.0.2.22", 2)
-        # addForwardingRule("s1", "10.0.3.33", 3)
 
-        # addForwardingRule("s2", "10.0.1.11", 2)
-        # addForwardingRule("s2", "10.0.2.22", 1)
-        # addForwardingRule("s2", "10.0.3.33", 3)
-
-        # addForwardingRule("s3", "10.0.1.11", 2)
-        # addForwardingRule("s3", "10.0.2.22", 3)
-        # addForwardingRule("s3", "10.0.3.33", 1)
-
-        # TODO enter loop and prompt user input for JSON file of txn
-        # txn_mgr = TransactionManager(1)
-        # txn_mgr.run_txn(9,None)
         with open(sw_config_file_path) as f:
             sw_config_json = json.load(f)
             txn_mgr = TransactionManager(controller_id)
