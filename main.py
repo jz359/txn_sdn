@@ -45,10 +45,10 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
             print "Installed P4 Program using SetForwardingPipelineConfig on %s" % bmv2_switch.name
             switches[switch] = bmv2_switch
 
-      with open(sw_config_file_path) as f:
-          sw_config_json = json.load(f)
-          txn_mgr = TransactionManager(controller_id, switches)
-          txn_mgr.run_txn(0, sw_config_json)
+        with open(sw_config_file_path) as f:
+            sw_config_json = json.load(f)
+            txn_mgr = TransactionManager(controller_id, switches)
+            txn_mgr.run_txn(0, sw_config_json)
 
     except KeyboardInterrupt:
         print " Shutting down."
