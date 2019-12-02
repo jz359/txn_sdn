@@ -21,8 +21,8 @@ import p4runtime_lib.helper
 
 switches = {}
 p4info_helper = None
-txn_mgr = None
-txn_id = 0
+# txn_mgr = None
+# txn_id = 0
 PARTICIPANTS = 1
 
 response_list = {}
@@ -335,6 +335,18 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
 
     ShutdownAllSwitchConnections()
 
+class TransactionRunner(threading.Thread):
+    def __init__(self, p4info, bmv2_json, topo, sw_config, controller_id):
+        super(TransactionRunner, self).__init__()
+        self.p4info = p4info
+        self.bmv2_json = bmv2_json
+        self.topo = topo
+        self.sw_config = sw_config
+        self.controller_id = controller_id
+
+    def run(self):
+        main(self.p4info, self.bmv2_json, self.topo, self.sw_config, self.id)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='P4Runtime Controller')
     parser.add_argument('--p4info', help='p4info proto in text format from p4c',
@@ -366,6 +378,10 @@ if __name__ == '__main__':
         parser.print_help()
         print "\nSwitch config file not found: %s" % args.sw_config
         parser.exit(1)
-    main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
 
-    
+    # main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
+    runner1 = TransactionRunner(args.p4info, args.bmv2_json, args.topo, args.sw_config, 0)
+    runner2 = TransactionRunner(args.p4info, args.bmv2_json, args.topo, "sw2.config", 1)
+
+    runner1.start()
+    runner2.start()
