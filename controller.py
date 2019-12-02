@@ -212,7 +212,7 @@ class Runner(threading.Thread):
                 got_all_responses.notifyAll()
 
         # done running a phase
-        print('CONTROLLER ' + str(self.txn_mgr) + ': runner for " + self.sw + " done running phase: " + self.phase)
+        print('CONTROLLER ' + str(self.txn_mgr) + ': runner for ' + self.sw + ' done running phase: ' + self.phase)
         sys.exit(0)
 
 
