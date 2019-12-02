@@ -285,6 +285,22 @@ class TransactionManager(object):
             action_params = {str(k):v for k,v in update['ACTION_PARAMS'].items()}
             addForwardingRule(sw, str(update["TABLE_NAME"]), match_field_tuples, str(update["ACTION"]), action_params)
 
+class ControllerRunner(threading.Thread):
+    def __init__(self, p4info, bmv2_json, topo, sw_config, controller_id):
+        super(ControllerRunner, self).__init__()
+        self.p4info = p4info
+        self.bmv2_json = bmv2_json
+        self.topo = topo
+        self.sw_config = sw_config
+        self.controller_id = controller_id
+
+    def run(self):
+        with open(self.sw_config) as f:
+            sw_config_json = json.load(f)
+            txn_mgr = TransactionManager(self.controller_id)
+            txn_mgr.run_txn(0, sw_config_json)
+        # main(self.p4info, self.bmv2_json, self.topo, self.sw_config, self.id)
+
 
 def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
     # Helper function to install forwarding rules
@@ -319,10 +335,16 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
             print "Installed P4 Program using SetForwardingPipelineConfig on %s" % bmv2_switch.name
             switches[switch] = bmv2_switch
 
-        with open(sw_config_file_path) as f:
-            sw_config_json = json.load(f)
-            txn_mgr = TransactionManager(controller_id)
-            txn_mgr.run_txn(0, sw_config_json)
+        runner1 = ControllerRunner(args.p4info, args.bmv2_json, args.topo, args.sw_config, 0)
+        runner2 = ControllerRunner(args.p4info, args.bmv2_json, args.topo, "sw2.config", 1)
+
+        runner1.start()
+        runner2.start()
+
+        # with open(sw_config_file_path) as f:
+        #     sw_config_json = json.load(f)
+        #     txn_mgr = TransactionManager(controller_id)
+        #     txn_mgr.run_txn(0, sw_config_json)
 
     except KeyboardInterrupt:
         print " Shutting down."
@@ -335,17 +357,6 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
 
     ShutdownAllSwitchConnections()
 
-class TransactionRunner(threading.Thread):
-    def __init__(self, p4info, bmv2_json, topo, sw_config, controller_id):
-        super(TransactionRunner, self).__init__()
-        self.p4info = p4info
-        self.bmv2_json = bmv2_json
-        self.topo = topo
-        self.sw_config = sw_config
-        self.controller_id = controller_id
-
-    def run(self):
-        main(self.p4info, self.bmv2_json, self.topo, self.sw_config, self.controller_id)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='P4Runtime Controller')
@@ -379,9 +390,4 @@ if __name__ == '__main__':
         print "\nSwitch config file not found: %s" % args.sw_config
         parser.exit(1)
 
-    # main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
-    runner1 = TransactionRunner(args.p4info, args.bmv2_json, args.topo, args.sw_config, 0)
-    runner2 = TransactionRunner(args.p4info, args.bmv2_json, args.topo, "sw2.config", 1)
-
-    runner1.start()
-    runner2.start()
+    main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
