@@ -215,13 +215,14 @@ class Runner(threading.Thread):
 
 
 class TransactionManager(object):
-    def __init__(self, txn_mgr, switches):
+    def __init__(self, txn_mgr, switches, p4info_helper):
         self.txn_mgr = txn_mgr
         # map of txn_id to JSON of updates to apply once every lock is held
         # see api.json
         self.updates = {}
         self.participants = set()
         self.switches = switches
+        self.p4info_helper = p4info_helper
 
 
     def set_participants(self, updates):
@@ -302,7 +303,7 @@ class TransactionManager(object):
 
     def addForwardingRule(self, switch, table_name, match_fields, action_name, action_params):
         # Helper function to install forwarding rules
-        table_entry = p4info_helper.buildTableEntry(
+        table_entry = self.p4info_helper.buildTableEntry(
             table_name=table_name,
             match_fields=match_fields,
             action_name=action_name,
