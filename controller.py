@@ -345,7 +345,7 @@ class TransactionRunner(threading.Thread):
         self.controller_id = controller_id
 
     def run(self):
-        main(self.p4info, self.bmv2_json, self.topo, self.sw_config, self.id)
+        main(self.p4info, self.bmv2_json, self.topo, self.sw_config, self.controller_id)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='P4Runtime Controller')
