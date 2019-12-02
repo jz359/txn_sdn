@@ -322,8 +322,8 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
         with open(sw_config_file_path) as f:
             sw_config_json = json.load(f)
             txn_mgr = TransactionManager(controller_id)
-            txn_mgr.run_txn(controller_id, sw_config_json)
-            # txn_mgr.apply_txn(controller_id)
+            txn_mgr.run_txn(0, sw_config_json)
+
     except KeyboardInterrupt:
         print " Shutting down."
     except grpc.RpcError as e:
