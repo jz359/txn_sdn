@@ -23,6 +23,17 @@ import p4runtime_lib.helper
 switches = {}
 p4info_helper = None
 
+class Runner(threading.Thread):
+    def __init__(self, txn_mgr, txn_id, config_json):
+        super(Runner, self).__init__()
+        self.txn_mgr = txn_mgr
+        self.txn_id = txn_id
+        self.config_json = config_json
+
+    def run(self):
+        self.txn_mgr.run_txn(self.txn_id, self.config_json)
+
+
 def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
@@ -53,6 +64,10 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
         txn_mgr2 = TransactionManager(2, switches, p4info_helper)
         txn_mgr.run_txn(1, sw_config_json)
         txn_mgr2.run_txn(2, sw_config_json2)
+        runner1 = Runner(txn_mgr, 1, sw_config_json)
+        runner2 = Runner(txn_mgr2, 2, sw_config_json2)
+        # runner1.start()
+        # runner2.start()
 
     except KeyboardInterrupt:
         print " Shutting down."
