@@ -231,6 +231,7 @@ class TransactionManager(object):
 
     def run_txn(self, txn_id, updates):
         global response_list, got_all_responses, access_lock, PARTICIPANTS
+        response_list = {}
         self.updates[txn_id] = updates
         self.set_participants(updates)
         PARTICIPANTS = len(self.participants)
@@ -292,26 +293,12 @@ class TransactionManager(object):
             table_name=table_name,
             match_fields=match_fields,
             action_name=action_name,
-            action_params=action_params)
+            action_params=action_params,
+            priority=2)
         bmv2_switch = self.switches[switch]
         bmv2_switch.WriteTableEntry(table_entry)
         print "Installed rule on %s" % (switch)
 
-'''
-class ControllerRunner(threading.Thread):
-    def __init__(self, p4info, bmv2_json, topo, sw_config, controller_id):
-        super(ControllerRunner, self).__init__()
-        self.p4info = p4info
-        self.bmv2_json = bmv2_json
-        self.topo = topo
-        self.sw_config = sw_config
-        self.controller_id = controller_id
-
-    def run(self):
-        with open(self.sw_config) as f:
-            sw_config_json = json.load(f)
-            txn_mgr = TransactionManager(self.controller_id)
-            txn_mgr.run_txn(0, sw_config_json)
 
 def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):
     # Instantiate a P4Runtime helper from the p4info file
@@ -337,7 +324,7 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
 
         with open(sw_config_file_path) as f:
             sw_config_json = json.load(f)
-            txn_mgr = TransactionManager(controller_id, switches)
+            txn_mgr = TransactionManager(controller_id, switches, p4info_helper)
             txn_mgr.run_txn(0, sw_config_json)
 
     except KeyboardInterrupt:
@@ -364,7 +351,7 @@ if __name__ == '__main__':
                         type=str, action="store", required=False,
                         default='topology.json')
     parser.add_argument('--sw_config', help='New configuration for switches', type=str, action="store", required=False, default='sw.config')
-    parser.add_argument('--id', help='Controller id', type=int, action="store", required=False, default=0)
+    parser.add_argument('--id', help='Controller id', type=int, action="store", required=False, default=1)
     args = parser.parse_args()
 
     if not os.path.exists(args.p4info):
@@ -385,4 +372,3 @@ if __name__ == '__main__':
         parser.exit(1)
 
     main(args.p4info, args.bmv2_json, args.topo, args.sw_config, args.id)
-'''
