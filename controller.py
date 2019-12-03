@@ -7,6 +7,7 @@ import Queue
 import socket
 import sys
 import threading
+import time
 from time import sleep
 from scapy.all import sniff, sendp, send, get_if_list, get_if_hwaddr, srp1, sr1, bind_layers
 from scapy.all import Packet
@@ -163,6 +164,8 @@ class Runner(threading.Thread):
             return 1 # failure
         print('CONTROLLER ' + str(self.txn_mgr) + ': got a vote from ' + self.sw)
         layer = self.get_packet_layer(resp_pkt, 'confirm')
+        if layer is None:
+            return 1 # failure
         return layer.status
 
     def run_release(self):
@@ -210,7 +213,6 @@ class Runner(threading.Thread):
                 got_all_responses.notifyAll()
 
         # done running a phase
-        print('CONTROLLER ' + str(self.txn_mgr) + ': runner for ' + self.sw + ' done running phase: ' + self.phase)
         sys.exit(0)
 
 
@@ -295,8 +297,11 @@ class TransactionManager(object):
             action_name=action_name,
             action_params=action_params)
         bmv2_switch = self.switches[switch]
-        bmv2_switch.WriteTableEntry(table_entry)
-        print "Installed rule on %s" % (switch)
+        try:
+            bmv2_switch.WriteTableEntry(table_entry)
+            print "Installed rule on %s" % (switch)
+        except:
+            print "CONTROLLER %s: Problem with installing rule on %s" % (str(self.txn_mgr), switch)
 
 
 def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):

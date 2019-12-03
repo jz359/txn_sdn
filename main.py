@@ -62,12 +62,13 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
         sw_config_json2 = json.load(f2)
         txn_mgr = TransactionManager(1, switches, p4info_helper)
         txn_mgr2 = TransactionManager(2, switches, p4info_helper)
-        txn_mgr.run_txn(1, sw_config_json)
-        txn_mgr2.run_txn(2, sw_config_json2)
+        # txn_mgr.run_txn(1, sw_config_json)
+        # txn_mgr2.run_txn(2, sw_config_json2)
         runner1 = Runner(txn_mgr, 1, sw_config_json)
         runner2 = Runner(txn_mgr2, 2, sw_config_json2)
-        # runner1.start()
-        # runner2.start()
+        runner2.start()
+        sleep(5)
+        runner1.start()
 
     except KeyboardInterrupt:
         print " Shutting down."
