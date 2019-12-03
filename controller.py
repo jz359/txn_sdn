@@ -293,8 +293,7 @@ class TransactionManager(object):
             table_name=table_name,
             match_fields=match_fields,
             action_name=action_name,
-            action_params=action_params,
-            priority=2)
+            action_params=action_params)
         bmv2_switch = self.switches[switch]
         bmv2_switch.WriteTableEntry(table_entry)
         print "Installed rule on %s" % (switch)
