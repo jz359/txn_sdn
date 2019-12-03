@@ -205,8 +205,6 @@ control MyIngress(inout headers hdr,
     }
     
     action abort() {
-        lock_txn_mgr.write(32w0, 0);
-        lock_txn_mgr.write(32w0, 0);
         hdr.twopc.free.setValid();
         hdr.twopc_phase.phase = TYPE_FREE; 
         hdr.twopc.free.txn_mgr = hdr.twopc.release.txn_mgr;
@@ -288,6 +286,16 @@ control MyIngress(inout headers hdr,
             hdr.ethernet.dstAddr = hdr.ethernet.srcAddr;
             hdr.ethernet.srcAddr = temp;
             hdr.ethernet.etherType = 0x9999;
+
+            bit<32> mgr = 0;
+            bit<32> id = 0;
+            lock_txn_mgr.read(mgr, 0);
+            lock_txn_id.read(id, 0);
+
+            if (hdr.twopc.release.txn_mgr == mgr && hdr.twopc.release.txn_id == id) {
+                lock_txn_mgr.write(32w0, 0);
+                lock_txn_mgr.write(32w0, 0);
+            }
             abort();
         }
         else {
