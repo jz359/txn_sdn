@@ -34,7 +34,6 @@ class Runner(threading.Thread):
         self.txn_mgr.run_txn(self.txn_id, self.config_json)
 
 
-
 def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
     global p4info_helper, switches
     # Helper function to install forwarding rules
@@ -83,13 +82,10 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
 
         txn_mgr = TransactionManager(1, switches, main_q, Queue.Queue())
         txn_mgr2 = TransactionManager(2, switches, main_q, Queue.Queue())
-        # txn_mgr.run_txn(1, sw_config_json)
-        # txn_mgr2.run_txn(2, sw_config_json2)
 
         runner1 = Runner(txn_mgr, 1, sw_config_json)
         runner2 = Runner(txn_mgr2, 2, sw_config_json2)
         runner2.start()
-        # sleep(5)
         runner1.start()
         while True:
             t = main_q.get()

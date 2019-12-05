@@ -204,14 +204,12 @@ class Runner(threading.Thread):
         except:
             print('CONTROLLER ' + str(self.txn_mgr) + ': timeout on commit-reply from ' + self.sw)
             return 1 # failure
-        # print_pkt(resp_pkt)
         print('CONTROLLER ' + str(self.txn_mgr) + ': got commit-reply from ' + self.sw)
         layer = get_packet_layer(resp_pkt, 'finished')
         return 0 # success
 
 
     def run(self):
-        # global response_list, got_all_responses, access_lock, PARTICIPANTS
         if self.phase == "vote":
             response = self.run_vote()
         elif self.phase == "release":
@@ -234,7 +232,7 @@ class TransactionManager(object):
     def __init__(self, txn_mgr, switches, main_q, main_q_ack):
         self.txn_mgr = txn_mgr
         # map of txn_id to JSON of updates to apply once every lock is held
-        # see api.json
+        # see sw.config for an example
         self.updates = {}
         self.participants = set()
         self.switches = switches
@@ -253,7 +251,6 @@ class TransactionManager(object):
             self.participants.add(str(update['SWITCH']))
 
     def run_txn(self, txn_id, updates):
-        # global response_list, got_all_responses, access_lock, PARTICIPANTS
         self.response_list = {}
         self.updates[txn_id] = updates
         self.set_participants(updates)
