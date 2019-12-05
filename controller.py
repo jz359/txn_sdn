@@ -312,7 +312,3 @@ class TransactionManager(object):
             txn_params.append((sw, str(update["TABLE_NAME"]), match_field_tuples, str(update["ACTION"]), action_params))
 
         self.main_q.put((self.main_q_ack,txn_params))
-
-
-
-    
