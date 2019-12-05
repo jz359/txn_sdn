@@ -140,7 +140,7 @@ class Sniffer(threading.Thread):
             response_layer = 'finished'
 
         layer = get_packet_layer(pkt, response_layer)
-        if (layer is not None and (pkt.src == 'ff:ff:ff:ff:ff:ff') and (layer.txn_mgr == self.txn_mgr)):
+        if (layer is not None and (layer.txn_mgr == self.txn_mgr)):
             self.queue.put(pkt)
             sys.exit(0)
 
