@@ -34,6 +34,23 @@ class Runner(threading.Thread):
         self.txn_mgr.run_txn(self.txn_id, self.config_json)
 
 
+
+def addForwardingRule(switch, table_name, match_fields, action_name, action_params):
+    global p4info_helper, switches
+    # Helper function to install forwarding rules
+    table_entry = p4info_helper.buildTableEntry(
+        table_name=table_name,
+        match_fields=match_fields,
+        action_name=action_name,
+        action_params=action_params)
+    bmv2_switch = switches[switch]
+    try:
+        bmv2_switch.WriteTableEntry(table_entry)
+        print "Installed rule on %s" % (switch)
+    except Exception as e:
+        print e
+        print "CONTROLLER %s: Problem with installing rule on %s" % (str(self.txn_mgr), switch)
+
 def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, controller_id):
     # Instantiate a P4Runtime helper from the p4info file
     global p4info_helper
@@ -60,15 +77,27 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path, sw_config_file_path, 
         f2 = open('sw2.config')
         sw_config_json = json.load(f)
         sw_config_json2 = json.load(f2)
-        txn_mgr = TransactionManager(1, switches, p4info_helper)
-        txn_mgr2 = TransactionManager(2, switches, p4info_helper)
+        
+        # main thread pulls from queue to add forwarding rule
+        main_q = Queue.Queue()
+
+        txn_mgr = TransactionManager(1, switches, main_q, Queue.Queue())
+        txn_mgr2 = TransactionManager(2, switches, main_q, Queue.Queue())
         # txn_mgr.run_txn(1, sw_config_json)
         # txn_mgr2.run_txn(2, sw_config_json2)
+
         runner1 = Runner(txn_mgr, 1, sw_config_json)
         runner2 = Runner(txn_mgr2, 2, sw_config_json2)
         runner2.start()
-        sleep(5)
+        # sleep(5)
         runner1.start()
+        while True:
+            t = main_q.get()
+            main_q_ack = t[0]
+            txn_params = t[1]
+            for param in txn_params:
+                addForwardingRule(param[0], param[1], param[2], param[3], param[4])
+            main_q_ack.put("ack")
 
     except KeyboardInterrupt:
         print " Shutting down."
